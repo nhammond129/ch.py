@@ -1,5 +1,6 @@
 ch.py
 =====
+Distributed under the terms of the GNU GPL.
 
   An event-based library for connecting to one or more Chatango chat rooms. Has support 
 for several things including: messaging, message font, name colour, deleting, banning, recent 
