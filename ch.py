@@ -679,8 +679,8 @@ class Room:
     msg = Message(
       time = mtime,
       user = User(name),
-      body = msg,
-      raw = rawmsg,
+      body = msg[1:],
+      raw = rawmsg[1:],
       ip = ip,
       nameColor = nameColor,
       fontColor = fontColor,
@@ -852,7 +852,7 @@ class Room:
     @param msg: message
     """
     if not self._silent:
-      self._sendCommand("bmsg", msg)
+      self._sendCommand("bmsg:tl2r", msg)
   
   def message(self, msg, html = False):
     """
