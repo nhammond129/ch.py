@@ -361,7 +361,8 @@ class PM:
     self._callEvent("onPMPing")
   
   def message(self, user, msg):
-    self._sendCommand("msg", user.name, msg)
+    if msg!=None:
+      self._sendCommand("msg", user.name, msg)
   
   def addContact(self, user):
     if user not in self._contacts:
