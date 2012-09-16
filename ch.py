@@ -361,7 +361,7 @@ class PM:
     self._callEvent("onPMPing")
   
   def message(self, user, msg):
-    if msg!=None:
+    if msg==None:
       self._sendCommand("msg", user.name, msg)
   
   def addContact(self, user):
@@ -862,7 +862,7 @@ class Room:
     @type msg: str
     @param msg: message
     """
-    if msg!=None:
+    if msg==None:
       return
     if not html:
       msg = msg.replace("<", "&lt;").replace(">", "&gt;")
