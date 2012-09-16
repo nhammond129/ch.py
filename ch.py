@@ -862,6 +862,8 @@ class Room:
     @type msg: str
     @param msg: message
     """
+    if msg!=None:
+      return
     if not html:
       msg = msg.replace("<", "&lt;").replace(">", "&gt;")
     if len(msg) > self.mgr._maxLength:
