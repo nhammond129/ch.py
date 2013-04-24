@@ -26,6 +26,7 @@ import random
 import re
 import sys
 import select
+import codecs
 
 
 ################################################################
@@ -98,6 +99,9 @@ def genUid():
 ################################################################
 # Message stuff
 ################################################################
+def BOMdefuser(content):
+  return content.encode("ascii","ignore").decode("ascii")
+
 def clean_message(msg):
   """
   Clean a message and return the message, n tag and f tag.
@@ -277,9 +281,9 @@ class PM:
     """
     self._rbuf += data
     while self._rbuf.find(b"\x00") != -1:
-      data = self._rbuf.split(b"\x00")
-      for food in data[:-1]:
-        self._process(food.decode().rstrip("\r\n")) #numnumz ;3
+      data = self._rbuf.split(b"\x00")[:-1]
+      for food in data:
+        self._process(food.decode(errors="replace").rstrip("\r\n")) #numnumz ;3
       self._rbuf = data[-1]
   
   def _process(self, data):
@@ -680,8 +684,8 @@ class Room:
     msg = Message(
       time = mtime,
       user = User(name),
-      body = msg[1:],
-      raw = rawmsg[1:],
+      body = BOMdefuser(msg).encode("ASCII").decode("ASCII","replace")[1:],
+      raw = BOMdefuser(rawmsg).encode("ASCII").decode("ASCII","replace")[1:],
       ip = ip,
       nameColor = nameColor,
       fontColor = fontColor,
