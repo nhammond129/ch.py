@@ -685,23 +685,34 @@ class Room:
     #Create an anonymous message and queue it because msgid is unknown.
     if f: fontColor, fontFace, fontSize = parseFont(f)
     else: fontColor, fontFace, fontSize = None, None, None
-    msg = Message(
-      time = mtime,
-      user = User(name),
-      if sys.version_info[0] < 3:
+    if sys.version_info[0] < 3:
+      msg = Message(
+        time = mtime,
+        user = User(name),
         body = BOMdefuser(msg).encode("ASCII").decode("ASCII","replace")[1:],
         raw = BOMdefuser(rawmsg).encode("ASCII").decode("ASCII","replace")[1:],
-      else:
-        body = msg[1:]
-        raw = rawmsg[1:]
-      ip = ip,
-      nameColor = nameColor,
-      fontColor = fontColor,
-      fontFace = fontFace,
-      fontSize = fontSize,
-      unid = unid,
-      room = self
-    )
+        ip = ip,
+        nameColor = nameColor,
+        fontColor = fontColor,
+        fontFace = fontFace,
+        fontSize = fontSize,
+        unid = unid,
+        room = self
+      )
+    else:
+      msg = Message(
+        time = mtime,
+        user = User(name),
+        body = msg[1:],
+        raw = rawmsg[1:],
+        ip = ip,
+        nameColor = nameColor,
+        fontColor = fontColor,
+        fontFace = fontFace,
+        fontSize = fontSize,
+        unid = unid,
+        room = self
+      )
     self._mqueue[i] = msg
   
   def rcmd_u(self, args):
