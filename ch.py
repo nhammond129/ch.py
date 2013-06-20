@@ -2,7 +2,7 @@
 # File: ch.py
 # Title: Chatango Library
 # Author: Lumirayz/Lumz <lumirayz@gmail.com>
-# Version: 1.31
+# Version: 1.32
 # Description:
 #  An event-based library for connecting to one or multiple Chatango rooms, has
 #  support for several things including: messaging, message font,
@@ -26,7 +26,6 @@ import random
 import re
 import sys
 import select
-import codecs
 
 
 ################################################################
@@ -37,6 +36,7 @@ if sys.version_info[0] < 3:
     parse = __import__("urllib")
     request = __import__("urllib2")
   input = raw_input
+  import codecs
 else:
   import urllib.request
   import urllib.parse
@@ -99,8 +99,9 @@ def genUid():
 ################################################################
 # Message stuff
 ################################################################
-def BOMdefuser(content):
-  return content.encode("ascii","ignore").decode("ascii")
+if sys.version_info[0] < 3:
+  def BOMdefuser(content):
+    return content.encode("ascii","ignore").decode("ascii")
 
 def clean_message(msg):
   """
@@ -240,7 +241,7 @@ class PM:
   # Connections
   ####
   def _connect(self):
-    self._wbuf = b"b"
+    self._wbuf = b""
     self._sock = socket.socket()
     self._sock.connect((self._mgr._PMHost, self._mgr._PMPort))
     self._sock.setblocking(False)
@@ -283,7 +284,10 @@ class PM:
     while self._rbuf.find(b"\x00") != -1:
       data = self._rbuf.split(b"\x00")[:-1]
       for food in data:
-        self._process(food.decode(errors="replace").rstrip("\r\n")) #numnumz ;3
+        if sys.version_info[0] < 3:
+          self._process(food.decode(errors="replace").rstrip("\r\n")) #numnumz ;3
+        else:
+          self._process(food.decode().rstrip("\r\n")) #numnumz ;3
       self._rbuf = data[-1]
   
   def _process(self, data):
@@ -680,12 +684,16 @@ class Room:
     unid = args[4]
     #Create an anonymous message and queue it because msgid is unknown.
     if f: fontColor, fontFace, fontSize = parseFont(f)
-    else: fontColor, fontFace, fontSize = None, None, None    
+    else: fontColor, fontFace, fontSize = None, None, None
     msg = Message(
       time = mtime,
       user = User(name),
-      body = BOMdefuser(msg).encode("ASCII").decode("ASCII","replace")[1:],
-      raw = BOMdefuser(rawmsg).encode("ASCII").decode("ASCII","replace")[1:],
+      if sys.version_info[0] < 3:
+        body = BOMdefuser(msg).encode("ASCII").decode("ASCII","replace")[1:],
+        raw = BOMdefuser(rawmsg).encode("ASCII").decode("ASCII","replace")[1:],
+      else:
+        body = msg[1:]
+        raw = rawmsg[1:]
       ip = ip,
       nameColor = nameColor,
       fontColor = fontColor,
