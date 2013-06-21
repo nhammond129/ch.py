@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import ch
 class TestBot(ch.RoomManager):
   def onConnect(self, room):
