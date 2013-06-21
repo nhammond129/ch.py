@@ -282,8 +282,8 @@ class PM:
     """
     self._rbuf += data
     while self._rbuf.find(b"\x00") != -1:
-      data = self._rbuf.split(b"\x00")[:-1]
-      for food in data:
+      data = self._rbuf.split(b"\x00")
+      for food in data[:-1]:
         if sys.version_info[0] < 3:
           self._process(food.decode(errors="replace").rstrip("\r\n")) #numnumz ;3
         else:
@@ -369,7 +369,7 @@ class PM:
     self._callEvent("onPMPing")
   
   def message(self, user, msg):
-    if msg==None:
+    if msg!=None:
       self._sendCommand("msg", user.name, msg)
   
   def addContact(self, user):
