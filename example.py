@@ -11,6 +11,7 @@ class TestBot(ch.RoomManager):
     print("Disconnected from "+room.name)
   
   def onMessage(self, room, user, message):
+    # Use with PsyfrBot framework? :3
     print(user.name+":"+message.body)
     if message.body.startswith("!a"):
       room.message("AAAAAAAAAAAAAA")
