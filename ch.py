@@ -51,6 +51,13 @@ BigMessage_Multiple = 0
 BigMessage_Cut      = 1
 
 ################################################################
+# Struct class
+################################################################
+class Struct:
+  def __init__(self, **entries):
+    self.__dict__.update(entries)
+
+################################################################
 # Tagserver stuff
 ################################################################
 specials = {'mitvcanal': 56, 'magicc666': 22, 'livenfree': 18, 'eplsiite': 56, 'soccerjumbo2': 21, 'bguk': 22, 'animachat20': 34, 'pokemonepisodeorg': 55, 'sport24lt': 56, 'mywowpinoy': 5, 'phnoytalk': 21, 'flowhot-chat-online': 12, 'watchanimeonn': 26, 'cricvid-hitcric-': 51, 'fullsportshd2': 18, 'chia-anime': 12, 'narutochatt': 52, 'ttvsports': 56, 'futboldirectochat': 22, 'portalsports': 18, 'stream2watch3': 56, 'proudlypinoychat': 51, 'ver-anime': 34, 'iluvpinas': 53, 'vipstand': 21, 'eafangames': 56, 'worldfootballusch2': 18, 'soccerjumbo': 21, 'myfoxdfw': 22, 'animelinkz': 20, 'rgsmotrisport': 51, 'bateriafina-8': 8, 'as-chatroom': 10, 'dbzepisodeorg': 12, 'tvanimefreak': 54, 'watch-dragonball': 19, 'narutowire': 10, 'leeplarp': 27}
@@ -719,16 +726,18 @@ class Room:
     self._mqueue[i] = msg
   
   def rcmd_u(self, args):
-    msg = self._mqueue[args[0]]
-    if msg.user != self.user:
-      msg.user._fontColor = msg.fontColor
-      msg.user._fontFace = msg.fontFace
-      msg.user._fontSize = msg.fontSize
-      msg.user._nameColor = msg.nameColor
-    del self._mqueue[args[0]]
-    msg.attach(self, args[1])
-    self._addHistory(msg)
-    self._callEvent("onMessage", msg.user, msg)
+    temp = Struct(**self._mqueue)
+    if hasattr(temp, args[0]):
+      msg = getattr(temp, args[0])
+      if msg.user != self.user:
+        msg.user._fontColor = msg.fontColor
+        msg.user._fontFace = msg.fontFace
+        msg.user._fontSize = msg.fontSize
+        msg.user._nameColor = msg.nameColor
+      del self._mqueue[args[0]]
+      msg.attach(self, args[1])
+      self._addHistory(msg)
+      self._callEvent("onMessage", msg.user, msg)
   
   def rcmd_i(self, args):
     mtime = float(args[0])
