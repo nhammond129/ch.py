@@ -1790,7 +1790,8 @@ class RoomManager:
 # User class (well, yeah, i lied, it's actually _User)
 ################################################################
 _users = dict()
-def User(name="", *args, **kw):
+def User(name, *args, **kw):
+  if name == None: name = ""
   name = name.lower()
   user = _users.get(name)
   if not user:
