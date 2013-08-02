@@ -2,7 +2,7 @@
 # File: ch.py
 # Title: Chatango Library
 # Author: Lumirayz/Lumz <lumirayz@gmail.com>
-# Version: 1.32
+# Version: 1.33
 # Description:
 #  An event-based library for connecting to one or multiple Chatango rooms, has
 #  support for several things including: messaging, message font,
@@ -535,7 +535,13 @@ class Room:
   
   def _auth(self):
     """Authenticate."""
-    self._sendCommand("bauth", self.name, self._uid, self.mgr.name, self.mgr.password)
+    # login as name with password
+    if self.mgr.name and self.mgr.password:
+      self._sendCommand("bauth", self.name, self._uid, self.mgr.name, self.mgr.password)                
+    # login as anon
+    else:
+      self._sendCommand("bauth", self.name)
+
     self._setWriteLock(True)
   
   ####
@@ -626,7 +632,13 @@ class Room:
   # Received Commands
   ####
   def rcmd_ok(self, args):
-    if args[2] != "M": #unsuccesful login
+    # if no name, join room as anon and no password
+    if args[2] == "N" and self.mgr.password == None and self.mgr.name == None: pass
+    # if got name, join room as name and no password
+    elif args[2] == "N" and self.mgr.password == None:
+      self._sendCommand("blogin", self.mgr.name)
+    # if got password but fail to login
+    elif args[2] != "M": #unsuccesful login
       self._callEvent("onLoginFail")
       self.disconnect()
     self._owner = User(args[0])
@@ -1779,6 +1791,8 @@ class RoomManager:
 ################################################################
 _users = dict()
 def User(name, *args, **kw):
+  # dirty hack
+  if name == None: name = ""
   name = name.lower()
   user = _users.get(name)
   if not user:
