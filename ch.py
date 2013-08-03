@@ -82,8 +82,7 @@ def getServer(group):
     lnv = group[6: (6 + min(3, len(group) - 5))]
     if(lnv):
       lnv = float(int(lnv, 36))
-      if(lnv <= 1000):
-        lnv = 1000
+      lnv = min(lnv,1000)
     else:
       lnv = 1000
     num = (fnv % lnv) / lnv
@@ -1156,7 +1155,7 @@ class Room:
     cname = None
     for n in udi.keys():
       if n.find(name) != -1:
-        if cname: return None #ambigious!!
+        if cname: return None #ambiguous!!
         cname = n
     if cname: return udi[cname]
     else: return None
@@ -1787,7 +1786,7 @@ class RoomManager:
     self.user._fontSize = size
 
 ################################################################
-# User class (well, yeah, i lied, it's actually _User)
+# User class (well, yeah, I lied, it's actually _User)
 ################################################################
 _users = dict()
 def User(name, *args, **kw):
