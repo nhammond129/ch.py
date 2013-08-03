@@ -2,7 +2,7 @@
 # File: ch.py
 # Title: Chatango Library
 # Author: Lumirayz/Lumz <lumirayz@gmail.com>
-# Version: 1.32
+# Version: 1.33
 # Description:
 #  An event-based library for connecting to one or multiple Chatango rooms, has
 #  support for several things including: messaging, message font,
@@ -82,8 +82,7 @@ def getServer(group):
     lnv = group[6: (6 + min(3, len(group) - 5))]
     if(lnv):
       lnv = float(int(lnv, 36))
-      if(lnv <= 1000):
-        lnv = 1000
+      lnv = min(lnv,1000)
     else:
       lnv = 1000
     num = (fnv % lnv) / lnv
@@ -535,7 +534,13 @@ class Room:
   
   def _auth(self):
     """Authenticate."""
-    self._sendCommand("bauth", self.name, self._uid, self.mgr.name, self.mgr.password)
+    # login as name with password
+    if self.mgr.name and self.mgr.password:
+      self._sendCommand("bauth", self.name, self._uid, self.mgr.name, self.mgr.password)                
+    # login as anon
+    else:
+      self._sendCommand("bauth", self.name)
+
     self._setWriteLock(True)
   
   ####
@@ -626,7 +631,13 @@ class Room:
   # Received Commands
   ####
   def rcmd_ok(self, args):
-    if args[2] != "M": #unsuccesful login
+    # if no name, join room as anon and no password
+    if args[2] == "N" and self.mgr.password == None and self.mgr.name == None: pass
+    # if got name, join room as name and no password
+    elif args[2] == "N" and self.mgr.password == None:
+      self._sendCommand("blogin", self.mgr.name)
+    # if got password but fail to login
+    elif args[2] != "M": #unsuccesful login
       self._callEvent("onLoginFail")
       self.disconnect()
     self._owner = User(args[0])
@@ -1144,7 +1155,7 @@ class Room:
     cname = None
     for n in udi.keys():
       if n.find(name) != -1:
-        if cname: return None #ambigious!!
+        if cname: return None #ambiguous!!
         cname = n
     if cname: return udi[cname]
     else: return None
@@ -1775,10 +1786,11 @@ class RoomManager:
     self.user._fontSize = size
 
 ################################################################
-# User class (well, yeah, i lied, it's actually _User)
+# User class (well, yeah, I lied, it's actually _User)
 ################################################################
 _users = dict()
 def User(name, *args, **kw):
+  if name == None: name = ""
   name = name.lower()
   user = _users.get(name)
   if not user:
