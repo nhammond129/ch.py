@@ -82,7 +82,7 @@ def getServer(group):
     lnv = group[6: (6 + min(3, len(group) - 5))]
     if(lnv):
       lnv = float(int(lnv, 36))
-      lnv = min(lnv,1000)
+      lnv = max(lnv,1000)
     else:
       lnv = 1000
     num = (fnv % lnv) / lnv
