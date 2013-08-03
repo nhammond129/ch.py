@@ -1716,7 +1716,10 @@ class RoomManager:
       t = 1
       for room in rooms:
         self.setTimeout(int(t),self.joinRoom,room)
-        t += 0.5
+        if len(rooms) > 10:
+          t = t + 1
+        else:
+          t = t + 0.5
     else:
       for room in rooms:
         self.joinRoom(room)
