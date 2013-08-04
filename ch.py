@@ -82,7 +82,7 @@ def getServer(group):
     lnv = group[6: (6 + min(3, len(group) - 5))]
     if(lnv):
       lnv = float(int(lnv, 36))
-      lnv = min(lnv,1000)
+      lnv = max(lnv,1000)
     else:
       lnv = 1000
     num = (fnv % lnv) / lnv
@@ -1711,8 +1711,18 @@ class RoomManager:
     if not password: password = str(input("User password: "))
     if password == "": password = None
     self = cl(name, password, pm = pm)
-    for room in rooms:
-      self.joinRoom(room)
+    if len(rooms) > 5:
+      # slow down connection to stop fail connection
+      t = 1
+      for room in rooms:
+        self.setTimeout(int(t),self.joinRoom,room)
+        if len(rooms) > 10:
+          t = t + 1
+        else:
+          t = t + 0.5
+    else:
+      for room in rooms:
+        self.joinRoom(room)
     self.main()
   
   def stop(self):
