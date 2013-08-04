@@ -632,7 +632,13 @@ class Room:
   ####
   def rcmd_ok(self, args):
     # if no name, join room as anon and no password
-    if args[2] == "N" and self.mgr.password == None and self.mgr.name == None: pass
+    if args[2] == "N" and self.mgr.password == None and self.mgr.name == None:
+      n = args[4].rsplit('.', 1)[0]
+      n = n[-4:]
+      aid = args[1][0:8]
+      pid = "anon" + getAnonId(n, aid)
+      self.mgr._name = pid
+      self.user._nameColor = n
     # if got name, join room as name and no password
     elif args[2] == "N" and self.mgr.password == None:
       self._sendCommand("blogin", self.mgr.name)
