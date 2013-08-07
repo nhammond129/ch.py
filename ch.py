@@ -467,7 +467,7 @@ class Room:
     self._premium = False
     self._userCount = 0
     self._pingTask = None
-    self._aname = None
+    self._botname = None
     self._users = dict()
     self._msgs = dict()
     self._wlock = False
@@ -548,7 +548,13 @@ class Room:
   # Properties
   ####
   def getName(self): return self._name
-  def getAname(self): return self._aname
+  def getBotName(self):
+    if self.mgr.name and self.mgr.password:
+      return self.mgr.name
+    elif self.mgr.name and self.mgr.password == None:
+      return "#" + self.mgr.name
+    elif self.mgr.name == None:
+      return self._botname
   def getManager(self): return self._mgr
   def getUserlist(self, mode = None, unique = None, memory = None):
     ul = None
@@ -583,7 +589,7 @@ class Room:
   def getBanlist(self): return [record[2] for record in self._banlist]
     
   name = property(getName)
-  aname = property(getAname)
+  botname = property(getBotName)
   mgr = property(getManager)
   userlist = property(getUserlist)
   usernames = property(getUserNames)
@@ -640,7 +646,7 @@ class Room:
       n = n[-4:]
       aid = args[1][0:8]
       pid = "!anon" + getAnonId(n, aid)
-      self._aname = pid
+      self._botname = pid
       self.user._nameColor = n
     # if got name, join room as name and no password
     elif args[2] == "N" and self.mgr.password == None:
