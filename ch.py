@@ -105,7 +105,7 @@ def genUid():
 ################################################################
 # Message stuff
 ################################################################
-if sys.version_info[0] < 3:
+if sys.version_info[0] < 3 or sys.platform.startswith("win") and not 'idlelib' in sys.modules:
   def BOMdefuser(content):
     return content.encode("ascii","ignore").decode("ascii")
 
@@ -290,7 +290,7 @@ class PM:
     while self._rbuf.find(b"\x00") != -1:
       data = self._rbuf.split(b"\x00")
       for food in data[:-1]:
-        if sys.version_info[0] < 3:
+        if sys.version_info[0] < 3 or sys.platform.startswith("win") and not 'idlelib' in sys.modules:
           self._process(food.decode(errors="replace").rstrip("\r\n")) #numnumz ;3
         else:
           self._process(food.decode().rstrip("\r\n")) #numnumz ;3
@@ -607,7 +607,7 @@ class Room:
     while self._rbuf.find(b"\x00") != -1:
       data = self._rbuf.split(b"\x00")
       for food in data[:-1]:
-        if sys.version_info[0] < 3:
+        if sys.version_info[0] < 3 or sys.platform.startswith("win") and not 'idlelib' in sys.modules:
           self._process(food.decode(errors="replace").rstrip("\r\n")) #numnumx ;3
         else:
           self._process(food.decode().rstrip("\r\n")) #numnumz ;3
@@ -708,7 +708,7 @@ class Room:
     #Create an anonymous message and queue it because msgid is unknown.
     if f: fontColor, fontFace, fontSize = parseFont(f)
     else: fontColor, fontFace, fontSize = None, None, None
-    if sys.version_info[0] < 3:
+    if sys.version_info[0] < 3 or sys.platform.startswith("win") and not 'idlelib' in sys.modules:
       msg = Message(
         time = mtime,
         user = User(name),
