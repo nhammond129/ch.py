@@ -649,6 +649,7 @@ class Room:
   def rcmd_denied(self, args):
     self._disconnect()
     self._callEvent("onConnectFail")
+    self._callEvent("onStartJoin", "denied")
   
   def rcmd_inited(self, args):
     self._sendCommand("g_participants", "start")
@@ -661,7 +662,7 @@ class Room:
         self._callEvent("onHistoryMessage", user, msg)
         self._addHistory(msg)
       del self._i_log
-      self._callEvent("onStartJoin")
+      self._callEvent("onStartJoin", "ok")
     else:
       self._callEvent("onReconnect")
     self._connectAmmount += 1
@@ -1285,12 +1286,22 @@ class RoomManager:
     """Called on init."""
     pass
   
-  def onStartJoin(self, room):
-    if self.rooms_copy == None: pass
-    elif len(self.rooms_copy) > 0:
-      self.joinRoom(self.rooms_copy.pop())
-    elif len(self.rooms_copy) == 0:
-      self.rooms_copy = None
+  def onStartJoin(self, room, status):
+    """Don't edit unless you know what you are doing"""
+    if status == "ok":
+      if self.rooms_copy == None: pass
+      elif len(self.rooms_copy) > 0:
+        self.joinRoom(self.rooms_copy.pop())
+      elif len(self.rooms_copy) == 0:
+        self.rooms_copy = None
+
+    elif status == "denied": # if it fail to connect, skip it
+      if self.rooms_copy == None: pass
+      elif len(self.rooms_copy) > 0:
+        self.joinRoom(self.rooms_copy.pop())
+      elif len(self.rooms_copy) == 0:
+        self.rooms_copy = None
+
   
   def onConnect(self, room):
     """
