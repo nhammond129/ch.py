@@ -661,6 +661,7 @@ class Room:
         self._callEvent("onHistoryMessage", user, msg)
         self._addHistory(msg)
       del self._i_log
+      self._callEvent("onStartJoin")
     else:
       self._callEvent("onReconnect")
     self._connectAmmount += 1
@@ -1284,6 +1285,13 @@ class RoomManager:
     """Called on init."""
     pass
   
+  def onStartJoin(self, room):
+    if self.rooms_copy == None: pass
+    elif len(self.rooms_copy) > 0:
+      self.joinRoom(self.rooms_copy.pop())
+    elif len(self.rooms_copy) == 0:
+      self.rooms_copy = None
+  
   def onConnect(self, room):
     """
     Called when connected to the room.
@@ -1711,18 +1719,9 @@ class RoomManager:
     if not password: password = str(input("User password: "))
     if password == "": password = None
     self = cl(name, password, pm = pm)
-    if len(rooms) > 5:
-      # slow down connection to stop fail connection
-      t = 1
-      for room in rooms:
-        self.setTimeout(int(t),self.joinRoom,room)
-        if len(rooms) > 10:
-          t = t + 1
-        else:
-          t = t + 0.5
-    else:
-      for room in rooms:
-        self.joinRoom(room)
+    self.rooms_copy=rooms
+    if len(self.rooms_copy)>0:
+        self.joinRoom(self.rooms_copy.pop())
     self.main()
   
   def stop(self):
