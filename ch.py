@@ -1745,7 +1745,7 @@ class RoomManager:
     if not password: password = str(input("User password: "))
     if password == "": password = None
     self = cl(name, password, pm = pm)
-    self.rooms_copy=rooms
+    self.rooms_copy=rooms[:]
     if len(self.rooms_copy)>0:
         self.joinRoom(self.rooms_copy.pop())
     self.main()
