@@ -1223,7 +1223,7 @@ class RoomManager:
     self._running = False
     self._tasks = set()
     self._rooms = dict()
-    self._rooms_copy = None
+    self._rooms_copy = list()
     if pm:
       self._pm = self._PM(mgr = self)
     else:
