@@ -1208,6 +1208,7 @@ class RoomManager:
     self._running = False
     self._tasks = set()
     self._rooms = dict()
+    self._rooms_copy = None
     if pm:
       self._pm = self._PM(mgr = self)
     else:
@@ -1270,6 +1271,7 @@ class RoomManager:
   def getPassword(self): return self._password
   def getRooms(self): return set(self._rooms.values())
   def getRoomNames(self): return set(self._rooms.keys())
+  def getRooms_copy(self): return set(self._rooms_copy)
   def getPM(self): return self._pm
   
   user = property(getUser)
@@ -1277,6 +1279,7 @@ class RoomManager:
   password = property(getPassword)
   rooms = property(getRooms)
   roomnames = property(getRoomNames)
+  rooms_copy = property(getRooms_copy)
   pm = property(getPM)
   
   ####
