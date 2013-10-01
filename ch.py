@@ -60,8 +60,8 @@ class Struct:
 ################################################################
 # Tagserver stuff
 ################################################################
-specials = {'mitvcanal': 56, 'magicc666': 22, 'livenfree': 18, 'eplsiite': 56, 'soccerjumbo2': 21, 'bguk': 22, 'animachat20': 34, 'pokemonepisodeorg': 55, 'sport24lt': 56, 'mywowpinoy': 5, 'phnoytalk': 21, 'flowhot-chat-online': 12, 'watchanimeonn': 26, 'cricvid-hitcric-': 51, 'fullsportshd2': 18, 'chia-anime': 12, 'narutochatt': 52, 'ttvsports': 56, 'futboldirectochat': 22, 'portalsports': 18, 'stream2watch3': 56, 'proudlypinoychat': 51, 'ver-anime': 34, 'iluvpinas': 53, 'vipstand': 21, 'eafangames': 56, 'worldfootballusch2': 18, 'soccerjumbo': 21, 'myfoxdfw': 22, 'animelinkz': 20, 'rgsmotrisport': 51, 'bateriafina-8': 8, 'as-chatroom': 10, 'dbzepisodeorg': 12, 'tvanimefreak': 54, 'watch-dragonball': 19, 'narutowire': 10, 'leeplarp': 27}
-tsweights = [['5', 61], ['6', 61], ['7', 61], ['8', 61], ['16', 61], ['17', 61], ['9', 90], ['11', 90], ['13', 90], ['14', 90], ['15', 90], ['23', 110], ['24', 110], ['25', 110], ['28', 104], ['29', 104], ['30', 104], ['31', 104], ['32', 104], ['33', 104], ['35', 101], ['36', 101], ['37', 101], ['38', 101], ['39', 101], ['40', 101], ['41', 101], ['42', 101], ['43', 101], ['44', 101], ['45', 101], ['46', 101], ['47', 101], ['48', 101], ['49', 101], ['50', 101], ['57', 110], ['58', 110], ['59', 110], ['60', 110], ['61', 110], ['62', 110], ['63', 110], ['64', 110], ['65', 110], ['66', 110]]
+specials = {'mitvcanal': 56, 'animeultimacom': 34, 'cricket365live': 21, 'pokemonepisodeorg': 22, 'animelinkz': 20, 'sport24lt': 56, 'narutowire': 10, 'watchanimeonn': 22, 'cricvid-hitcric-': 51, 'narutochatt': 70, 'leeplarp': 27, 'stream2watch3': 56, 'ttvsports': 56, 'ver-anime': 8, 'vipstand': 21, 'eafangames': 56, 'soccerjumbo': 21, 'myfoxdfw': 67, 'kiiiikiii': 21, 'de-livechat': 5, 'rgsmotrisport': 51, 'dbzepisodeorg': 10, 'watch-dragonball': 8, 'peliculas-flv': 69, 'tvanimefreak': 54, 'tvtvanimefreak': 54}
+tsweights = [['5', 75], ['6', 75], ['7', 75], ['8', 75], ['16', 75], ['17', 75], ['18', 75], ['9', 95], ['11', 95], ['12', 95], ['13', 95], ['14', 95], ['15', 95], ['19', 110], ['23', 110], ['24', 110], ['25', 110], ['26', 110], ['28', 104], ['29', 104], ['30', 104], ['31', 104], ['32', 104], ['33', 104], ['35', 101], ['36', 101], ['37', 101], ['38', 101], ['39', 101], ['40', 101], ['41', 101], ['42', 101], ['43', 101], ['44', 101], ['45', 101], ['46', 101], ['47', 101], ['48', 101], ['49', 101], ['50', 101], ['52', 110], ['53', 110], ['55', 110], ['57', 110], ['58', 110], ['59', 110], ['60', 110], ['61', 110], ['62', 110], ['63', 110], ['64', 110], ['65', 110], ['66', 110], ['68', 95], ['71', 116], ['72', 116], ['73', 116], ['74', 116], ['75', 116], ['76', 116], ['77', 116], ['78', 116], ['79', 116], ['80', 116], ['81', 116], ['82', 116], ['83', 116], ['84', 116]]
 
 def getServer(group):
   """
@@ -467,6 +467,7 @@ class Room:
     self._premium = False
     self._userCount = 0
     self._pingTask = None
+    self._botname = None
     self._users = dict()
     self._msgs = dict()
     self._wlock = False
@@ -547,6 +548,13 @@ class Room:
   # Properties
   ####
   def getName(self): return self._name
+  def getBotName(self):
+    if self.mgr.name and self.mgr.password:
+      return self.mgr.name
+    elif self.mgr.name and self.mgr.password == None:
+      return "#" + self.mgr.name
+    elif self.mgr.name == None:
+      return self._botname
   def getManager(self): return self._mgr
   def getUserlist(self, mode = None, unique = None, memory = None):
     ul = None
@@ -581,6 +589,7 @@ class Room:
   def getBanlist(self): return [record[2] for record in self._banlist]
     
   name = property(getName)
+  botname = property(getBotName)
   mgr = property(getManager)
   userlist = property(getUserlist)
   usernames = property(getUserNames)
@@ -632,7 +641,13 @@ class Room:
   ####
   def rcmd_ok(self, args):
     # if no name, join room as anon and no password
-    if args[2] == "N" and self.mgr.password == None and self.mgr.name == None: pass
+    if args[2] == "N" and self.mgr.password == None and self.mgr.name == None:
+      n = args[4].rsplit('.', 1)[0]
+      n = n[-4:]
+      aid = args[1][0:8]
+      pid = "!anon" + getAnonId(n, aid)
+      self._botname = pid
+      self.user._nameColor = n
     # if got name, join room as name and no password
     elif args[2] == "N" and self.mgr.password == None:
       self._sendCommand("blogin", self.mgr.name)
@@ -1733,7 +1748,7 @@ class RoomManager:
     if not password: password = str(input("User password: "))
     if password == "": password = None
     self = cl(name, password, pm = pm)
-    self.rooms_copy=rooms
+    self.rooms_copy=rooms[:]
     if len(self.rooms_copy)>0:
         self.joinRoom(self.rooms_copy.pop())
     self.main()

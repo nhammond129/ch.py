@@ -17,8 +17,8 @@ class TestBot(ch.RoomManager):
       room.message("AAAAAAAAAAAAAA")
 
   
-  def onFloodWarning(self, room):
-    print("you are flood ban")
+  def onFloodBan(self, room):
+    print("You are flood banned in "+room.name)
   
   def onPMMessage(self, pm, user, body):
     print("PM:"+user.name+": "+body)
