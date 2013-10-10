@@ -2,7 +2,7 @@
 # File: ch.py
 # Title: Chatango Library
 # Author: Lumirayz/Lumz <lumirayz@gmail.com>
-# Version: 1.32
+# Version: 1.33
 # Description:
 #  An event-based library for connecting to one or multiple Chatango rooms, has
 #  support for several things including: messaging, message font,
@@ -60,8 +60,8 @@ class Struct:
 ################################################################
 # Tagserver stuff
 ################################################################
-specials = {'mitvcanal': 56, 'magicc666': 22, 'livenfree': 18, 'eplsiite': 56, 'soccerjumbo2': 21, 'bguk': 22, 'animachat20': 34, 'pokemonepisodeorg': 55, 'sport24lt': 56, 'mywowpinoy': 5, 'phnoytalk': 21, 'flowhot-chat-online': 12, 'watchanimeonn': 26, 'cricvid-hitcric-': 51, 'fullsportshd2': 18, 'chia-anime': 12, 'narutochatt': 52, 'ttvsports': 56, 'futboldirectochat': 22, 'portalsports': 18, 'stream2watch3': 56, 'proudlypinoychat': 51, 'ver-anime': 34, 'iluvpinas': 53, 'vipstand': 21, 'eafangames': 56, 'worldfootballusch2': 18, 'soccerjumbo': 21, 'myfoxdfw': 22, 'animelinkz': 20, 'rgsmotrisport': 51, 'bateriafina-8': 8, 'as-chatroom': 10, 'dbzepisodeorg': 12, 'tvanimefreak': 54, 'watch-dragonball': 19, 'narutowire': 10, 'leeplarp': 27}
-tsweights = [['5', 61], ['6', 61], ['7', 61], ['8', 61], ['16', 61], ['17', 61], ['9', 90], ['11', 90], ['13', 90], ['14', 90], ['15', 90], ['23', 110], ['24', 110], ['25', 110], ['28', 104], ['29', 104], ['30', 104], ['31', 104], ['32', 104], ['33', 104], ['35', 101], ['36', 101], ['37', 101], ['38', 101], ['39', 101], ['40', 101], ['41', 101], ['42', 101], ['43', 101], ['44', 101], ['45', 101], ['46', 101], ['47', 101], ['48', 101], ['49', 101], ['50', 101], ['57', 110], ['58', 110], ['59', 110], ['60', 110], ['61', 110], ['62', 110], ['63', 110], ['64', 110], ['65', 110], ['66', 110]]
+specials = {'mitvcanal': 56, 'animeultimacom': 34, 'cricket365live': 21, 'pokemonepisodeorg': 22, 'animelinkz': 20, 'sport24lt': 56, 'narutowire': 10, 'watchanimeonn': 22, 'cricvid-hitcric-': 51, 'narutochatt': 70, 'leeplarp': 27, 'stream2watch3': 56, 'ttvsports': 56, 'ver-anime': 8, 'vipstand': 21, 'eafangames': 56, 'soccerjumbo': 21, 'myfoxdfw': 67, 'kiiiikiii': 21, 'de-livechat': 5, 'rgsmotrisport': 51, 'dbzepisodeorg': 10, 'watch-dragonball': 8, 'peliculas-flv': 69, 'tvanimefreak': 54, 'tvtvanimefreak': 54}
+tsweights = [['5', 75], ['6', 75], ['7', 75], ['8', 75], ['16', 75], ['17', 75], ['18', 75], ['9', 95], ['11', 95], ['12', 95], ['13', 95], ['14', 95], ['15', 95], ['19', 110], ['23', 110], ['24', 110], ['25', 110], ['26', 110], ['28', 104], ['29', 104], ['30', 104], ['31', 104], ['32', 104], ['33', 104], ['35', 101], ['36', 101], ['37', 101], ['38', 101], ['39', 101], ['40', 101], ['41', 101], ['42', 101], ['43', 101], ['44', 101], ['45', 101], ['46', 101], ['47', 101], ['48', 101], ['49', 101], ['50', 101], ['52', 110], ['53', 110], ['55', 110], ['57', 110], ['58', 110], ['59', 110], ['60', 110], ['61', 110], ['62', 110], ['63', 110], ['64', 110], ['65', 110], ['66', 110], ['68', 95], ['71', 116], ['72', 116], ['73', 116], ['74', 116], ['75', 116], ['76', 116], ['77', 116], ['78', 116], ['79', 116], ['80', 116], ['81', 116], ['82', 116], ['83', 116], ['84', 116]]
 
 def getServer(group):
   """
@@ -82,8 +82,7 @@ def getServer(group):
     lnv = group[6: (6 + min(3, len(group) - 5))]
     if(lnv):
       lnv = float(int(lnv, 36))
-      if(lnv <= 1000):
-        lnv = 1000
+      lnv = max(lnv,1000)
     else:
       lnv = 1000
     num = (fnv % lnv) / lnv
@@ -106,10 +105,6 @@ def genUid():
 ################################################################
 # Message stuff
 ################################################################
-if sys.version_info[0] < 3:
-  def BOMdefuser(content):
-    return content.encode("ascii","ignore").decode("ascii")
-
 def clean_message(msg):
   """
   Clean a message and return the message, n tag and f tag.
@@ -243,6 +238,8 @@ class PM:
     self._rbuf = b""
     self._pingTask = None
     self._connect()
+    
+    self.unicodeCompat = False
   
   ####
   # Connections
@@ -291,10 +288,10 @@ class PM:
     while self._rbuf.find(b"\x00") != -1:
       data = self._rbuf.split(b"\x00")
       for food in data[:-1]:
-        if sys.version_info[0] < 3:
-          self._process(food.decode(errors="replace").rstrip("\r\n")) #numnumz ;3
+        if self.unicodeCompat:
+          self._process(food.decode('utf-8').rstrip("\r\n"))
         else:
-          self._process(food.decode().rstrip("\r\n")) #numnumz ;3
+          self._process(food.decode('utf-8').encode('ascii', errors='backslashreplace').rstrip("\r\n"))
       self._rbuf = data[-1]
   
   def _process(self, data):
@@ -468,11 +465,14 @@ class Room:
     self._premium = False
     self._userCount = 0
     self._pingTask = None
+    self._botname = None
     self._users = dict()
     self._msgs = dict()
     self._wlock = False
     self._silent = False
     self._banlist = list()
+    
+    self.unicodeCompat = False
     
     # Inited vars
     if self._mgr: self._connect()
@@ -535,13 +535,26 @@ class Room:
   
   def _auth(self):
     """Authenticate."""
-    self._sendCommand("bauth", self.name, self._uid, self.mgr.name, self.mgr.password)
+    # login as name with password
+    if self.mgr.name and self.mgr.password:
+      self._sendCommand("bauth", self.name, self._uid, self.mgr.name, self.mgr.password)                
+    # login as anon
+    else:
+      self._sendCommand("bauth", self.name)
+
     self._setWriteLock(True)
   
   ####
   # Properties
   ####
   def getName(self): return self._name
+  def getBotName(self):
+    if self.mgr.name and self.mgr.password:
+      return self.mgr.name
+    elif self.mgr.name and self.mgr.password == None:
+      return "#" + self.mgr.name
+    elif self.mgr.name == None:
+      return self._botname
   def getManager(self): return self._mgr
   def getUserlist(self, mode = None, unique = None, memory = None):
     ul = None
@@ -576,6 +589,7 @@ class Room:
   def getBanlist(self): return [record[2] for record in self._banlist]
     
   name = property(getName)
+  botname = property(getBotName)
   mgr = property(getManager)
   userlist = property(getUserlist)
   usernames = property(getUserNames)
@@ -602,10 +616,10 @@ class Room:
     while self._rbuf.find(b"\x00") != -1:
       data = self._rbuf.split(b"\x00")
       for food in data[:-1]:
-        if sys.version_info[0] < 3:
-          self._process(food.decode(errors="replace").rstrip("\r\n")) #numnumx ;3
+        if self.unicodeCompat:
+          self._process(food.decode('utf-8').rstrip("\r\n"))
         else:
-          self._process(food.decode().rstrip("\r\n")) #numnumz ;3
+          self._process(food.decode('utf-8').encode('ascii', errors='backslashreplace').rstrip("\r\n"))
       self._rbuf = data[-1]
   
   def _process(self, data):
@@ -626,7 +640,19 @@ class Room:
   # Received Commands
   ####
   def rcmd_ok(self, args):
-    if args[2] != "M": #unsuccesful login
+    # if no name, join room as anon and no password
+    if args[2] == "N" and self.mgr.password == None and self.mgr.name == None:
+      n = args[4].rsplit('.', 1)[0]
+      n = n[-4:]
+      aid = args[1][0:8]
+      pid = "!anon" + getAnonId(n, aid)
+      self._botname = pid
+      self.user._nameColor = n
+    # if got name, join room as name and no password
+    elif args[2] == "N" and self.mgr.password == None:
+      self._sendCommand("blogin", self.mgr.name)
+    # if got password but fail to login
+    elif args[2] != "M": #unsuccesful login
       self._callEvent("onLoginFail")
       self.disconnect()
     self._owner = User(args[0])
@@ -638,6 +664,7 @@ class Room:
   def rcmd_denied(self, args):
     self._disconnect()
     self._callEvent("onConnectFail")
+    self._callEvent("onStartJoin", "denied")
   
   def rcmd_inited(self, args):
     self._sendCommand("g_participants", "start")
@@ -650,6 +677,7 @@ class Room:
         self._callEvent("onHistoryMessage", user, msg)
         self._addHistory(msg)
       del self._i_log
+      self._callEvent("onStartJoin", "ok")
     else:
       self._callEvent("onReconnect")
     self._connectAmmount += 1
@@ -680,7 +708,7 @@ class Room:
     puid = args[3]
     ip = args[6]
     name = args[1]
-    rawmsg = ":".join(args[8:])
+    rawmsg = ":".join(args[9:])
     msg, n, f = clean_message(rawmsg)
     if name == "":
       nameColor = None
@@ -695,34 +723,19 @@ class Room:
     #Create an anonymous message and queue it because msgid is unknown.
     if f: fontColor, fontFace, fontSize = parseFont(f)
     else: fontColor, fontFace, fontSize = None, None, None
-    if sys.version_info[0] < 3:
-      msg = Message(
-        time = mtime,
-        user = User(name),
-        body = BOMdefuser(msg).encode("ASCII").decode("ASCII","replace")[1:],
-        raw = BOMdefuser(rawmsg).encode("ASCII").decode("ASCII","replace")[1:],
-        ip = ip,
-        nameColor = nameColor,
-        fontColor = fontColor,
-        fontFace = fontFace,
-        fontSize = fontSize,
-        unid = unid,
-        room = self
-      )
-    else:
-      msg = Message(
-        time = mtime,
-        user = User(name),
-        body = msg[1:],
-        raw = rawmsg[1:],
-        ip = ip,
-        nameColor = nameColor,
-        fontColor = fontColor,
-        fontFace = fontFace,
-        fontSize = fontSize,
-        unid = unid,
-        room = self
-      )
+    msg = Message(
+      time = mtime,
+      user = User(name),
+      body = msg,
+      raw = rawmsg,
+      ip = ip,
+      nameColor = nameColor,
+      fontColor = fontColor,
+      fontFace = fontFace,
+      fontSize = fontSize,
+      unid = unid,
+      room = self
+    )
     self._mqueue[i] = msg
   
   def rcmd_u(self, args):
@@ -1144,7 +1157,7 @@ class Room:
     cname = None
     for n in udi.keys():
       if n.find(name) != -1:
-        if cname: return None #ambigious!!
+        if cname: return None #ambiguous!!
         cname = n
     if cname: return udi[cname]
     else: return None
@@ -1195,6 +1208,7 @@ class RoomManager:
     self._running = False
     self._tasks = set()
     self._rooms = dict()
+    self._rooms_copy = list()
     if pm:
       self._pm = self._PM(mgr = self)
     else:
@@ -1257,6 +1271,7 @@ class RoomManager:
   def getPassword(self): return self._password
   def getRooms(self): return set(self._rooms.values())
   def getRoomNames(self): return set(self._rooms.keys())
+  def getRooms_copy(self): return set(self._rooms_copy)
   def getPM(self): return self._pm
   
   user = property(getUser)
@@ -1264,6 +1279,7 @@ class RoomManager:
   password = property(getPassword)
   rooms = property(getRooms)
   roomnames = property(getRoomNames)
+  rooms_copy = property(getRooms_copy)
   pm = property(getPM)
   
   ####
@@ -1272,6 +1288,20 @@ class RoomManager:
   def onInit(self):
     """Called on init."""
     pass
+  
+  def onStartJoin(self, room, status):
+    """Don't edit unless you know what you are doing"""
+    if status == "ok":
+      if self.rooms_copy == []: pass
+      elif len(self.rooms_copy) > 0:
+        self.joinRoom(self.rooms_copy.pop())
+
+    elif status == "denied": # if it fail to connect, skip it
+      if self.rooms_copy == []: pass
+      elif len(self.rooms_copy) > 0:
+        self.joinRoom(self.rooms_copy.pop())
+
+
   
   def onConnect(self, room):
     """
@@ -1700,8 +1730,9 @@ class RoomManager:
     if not password: password = str(input("User password: "))
     if password == "": password = None
     self = cl(name, password, pm = pm)
-    for room in rooms:
-      self.joinRoom(room)
+    self.rooms_copy=rooms[:]
+    if len(self.rooms_copy)>0:
+        self.joinRoom(self.rooms_copy.pop())
     self.main()
   
   def stop(self):
@@ -1775,10 +1806,11 @@ class RoomManager:
     self.user._fontSize = size
 
 ################################################################
-# User class (well, yeah, i lied, it's actually _User)
+# User class (well, yeah, I lied, it's actually _User)
 ################################################################
 _users = dict()
 def User(name, *args, **kw):
+  if name == None: name = ""
   name = name.lower()
   user = _users.get(name)
   if not user:

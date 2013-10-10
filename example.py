@@ -1,7 +1,11 @@
 #!/usr/bin/python
 import ch
+import sys
+import codecs
+
 class TestBot(ch.RoomManager):
   def onConnect(self, room):
+    room.unicodeCompat = True
     print("Connected to "+room.name)
     
   def onReconnect(self, room):
@@ -12,13 +16,23 @@ class TestBot(ch.RoomManager):
   
   def onMessage(self, room, user, message):
     # Use with PsyfrBot framework? :3
-    print(user.name+":"+message.body)
+    sys.stdout.write (user.name + ': ')
+    with codecs.open ('test', 'w+', encoding='utf-8') as f:
+      f.write (message.body)
+    text = message.body + '\n'
+    while True:
+      try:
+        sys.stdout.write (text)
+        break
+      except UnicodeEncodeError as ex:
+        sys.stdout.write (text[0:ex.start] + '(unicode)')
+        text = text[ex.end:]
     if message.body.startswith("!a"):
       room.message("AAAAAAAAAAAAAA")
 
   
-  def onFloodWarning(self, room):
-    print("you are flood ban")
+  def onFloodBan(self, room):
+    print("You are flood banned in "+room.name)
   
   def onPMMessage(self, pm, user, body):
     print("PM:"+user.name+": "+body)
