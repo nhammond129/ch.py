@@ -238,8 +238,10 @@ class PM:
     self._rbuf = b""
     self._pingTask = None
     self._connect()
-    
-    self.unicodeCompat = False
+    if sys.version_info[0] < 3 and sys.platform.startswith("win"):
+      self.unicodeCompat = False
+    else:
+      self.unicodeCompat = True
   
   ####
   # Connections
@@ -289,9 +291,9 @@ class PM:
       data = self._rbuf.split(b"\x00")
       for food in data[:-1]:
         if self.unicodeCompat:
-          self._process(food.decode('utf-8').rstrip("\r\n"))
+          self._process(food.decode().rstrip("\r\n"))
         else:
-          self._process(food.decode('utf-8').encode('ascii', errors='backslashreplace').rstrip("\r\n"))
+          self._process(food.decode(errors="replace").rstrip("\r\n"))
       self._rbuf = data[-1]
   
   def _process(self, data):
@@ -471,8 +473,10 @@ class Room:
     self._wlock = False
     self._silent = False
     self._banlist = list()
-    
-    self.unicodeCompat = False
+    if sys.version_info[0] < 3 and sys.platform.startswith("win"):
+      self.unicodeCompat = False
+    else:
+      self.unicodeCompat = True
     
     # Inited vars
     if self._mgr: self._connect()
@@ -617,9 +621,9 @@ class Room:
       data = self._rbuf.split(b"\x00")
       for food in data[:-1]:
         if self.unicodeCompat:
-          self._process(food.decode('utf-8').rstrip("\r\n"))
+          self._process(food.decode().rstrip("\r\n"))
         else:
-          self._process(food.decode('utf-8').encode('ascii', errors='backslashreplace').rstrip("\r\n"))
+          self._process(food.decode(errors="replace").rstrip("\r\n"))
       self._rbuf = data[-1]
   
   def _process(self, data):
@@ -1288,6 +1292,15 @@ class RoomManager:
   def onInit(self):
     """Called on init."""
     pass
+
+  def safePrint(self, text):
+    """ use this to safely print text with unicode"""
+    while True:
+      try:
+        print(text)
+        break
+      except UnicodeEncodeError as ex:
+        text = (text[0:ex.start]+'(unicode)'+text[ex.end:])
   
   def onStartJoin(self, room, status):
     """Don't edit unless you know what you are doing"""
@@ -1730,7 +1743,7 @@ class RoomManager:
     if not password: password = str(input("User password: "))
     if password == "": password = None
     self = cl(name, password, pm = pm)
-    self.rooms_copy=rooms[:]
+    self._rooms_copy=rooms[:]
     if len(self.rooms_copy)>0:
         self.joinRoom(self.rooms_copy.pop())
     self.main()

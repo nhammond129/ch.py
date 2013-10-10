@@ -2,16 +2,8 @@
 import ch
 
 class TestBot(ch.RoomManager):
-  def safePrint (self, text):
-      while True:
-        try:
-          print(text)
-          break
-        except UnicodeEncodeError as ex:
-          text = (text[0:ex.start] + '(unicode)' + text[ex.end:])
 
   def onConnect(self, room):
-    room.unicodeCompat = True
     print("Connected to "+room.name)
     
   def onReconnect(self, room):
