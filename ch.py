@@ -238,6 +238,8 @@ class PM:
     self._rbuf = b""
     self._pingTask = None
     self._connect()
+    
+    self.unicodeCompat = False
   
   ####
   # Connections
@@ -286,10 +288,10 @@ class PM:
     while self._rbuf.find(b"\x00") != -1:
       data = self._rbuf.split(b"\x00")
       for food in data[:-1]:
-        if sys.version_info[0] < 3 or sys.platform.startswith("win") and not 'idlelib' in sys.modules:
-          self._process(food.decode(errors="replace").rstrip("\r\n")) #numnumz ;3
+        if self.unicodeCompat:
+          self._process(food.decode('utf-8').rstrip("\r\n"))
         else:
-          self._process(food.decode().rstrip("\r\n")) #numnumz ;3
+          self._process(food.decode('utf-8').encode('ascii', errors='backslashreplace').rstrip("\r\n"))
       self._rbuf = data[-1]
   
   def _process(self, data):
@@ -470,6 +472,8 @@ class Room:
     self._silent = False
     self._banlist = list()
     
+    self.unicodeCompat = False
+    
     # Inited vars
     if self._mgr: self._connect()
   
@@ -612,10 +616,10 @@ class Room:
     while self._rbuf.find(b"\x00") != -1:
       data = self._rbuf.split(b"\x00")
       for food in data[:-1]:
-        if sys.version_info[0] < 3 or sys.platform.startswith("win") and not 'idlelib' in sys.modules:
-          self._process(food.decode(errors="replace").rstrip("\r\n")) #numnumx ;3
+        if self.unicodeCompat:
+          self._process(food.decode('utf-8').rstrip("\r\n"))
         else:
-          self._process(food.decode().rstrip("\r\n")) #numnumz ;3
+          self._process(food.decode('utf-8').encode('ascii', errors='backslashreplace').rstrip("\r\n"))
       self._rbuf = data[-1]
   
   def _process(self, data):
