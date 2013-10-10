@@ -730,8 +730,8 @@ class Room:
     msg = Message(
       time = mtime,
       user = User(name),
-      body = msg,
-      raw = rawmsg,
+      body = msg if self.unicodeCompat else msg.encode("ascii","ignore").decode("ascii"),
+      raw = rawmsg if self.unicodeCompat else rawmsg.encode("ascii","ignore").decode("ascii"),
       ip = ip,
       nameColor = nameColor,
       fontColor = fontColor,
