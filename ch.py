@@ -350,7 +350,7 @@ class PM:
   
   def rcmd_msg(self, args):
     user = User(args[0])
-    body = strip_html(":".join(args[5:]))
+    body = strip_html(":".join(args[5:])) if self.unicodeCompat else  strip_html(":".join(args[5:])) .encode("ascii","ignore").decode("ascii")
     self._callEvent("onPMMessage", user, body)
   
   def rcmd_msgoff(self, args):
@@ -712,7 +712,7 @@ class Room:
     puid = args[3]
     ip = args[6]
     name = args[1]
-    rawmsg = ":".join(args[9:])
+    rawmsg = ":".join(args[9:]) if self.unicodeCompat else ":".join(args[9:]).encode("ascii","ignore").decode("ascii")
     msg, n, f = clean_message(rawmsg)
     if name == "":
       nameColor = None
@@ -730,8 +730,8 @@ class Room:
     msg = Message(
       time = mtime,
       user = User(name),
-      body = msg if self.unicodeCompat else msg.encode("ascii","ignore").decode("ascii"),
-      raw = rawmsg if self.unicodeCompat else rawmsg.encode("ascii","ignore").decode("ascii"),
+      body = msg,
+      raw = rawmsg,
       ip = ip,
       nameColor = nameColor,
       fontColor = fontColor,
