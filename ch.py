@@ -1305,14 +1305,14 @@ class RoomManager:
   def onStartJoin(self, room, status):
     """Don't edit unless you know what you are doing"""
     if status == "ok":
-      if self.rooms_copy == []: pass
-      elif len(self.rooms_copy) > 0:
-        self.joinRoom(self.rooms_copy.pop())
+      if self._rooms_copy == []: pass
+      elif len(self._rooms_copy) > 0:
+        self.joinRoom(self._rooms_copy.pop())
 
     elif status == "denied": # if it fail to connect, skip it
-      if self.rooms_copy == []: pass
-      elif len(self.rooms_copy) > 0:
-        self.joinRoom(self.rooms_copy.pop())
+      if self._rooms_copy == []: pass
+      elif len(self._rooms_copy) > 0:
+        self.joinRoom(self._rooms_copy.pop())
 
 
   
@@ -1744,8 +1744,8 @@ class RoomManager:
     if password == "": password = None
     self = cl(name, password, pm = pm)
     self._rooms_copy=rooms[:]
-    if len(self.rooms_copy)>0:
-        self.joinRoom(self.rooms_copy.pop())
+    if len(self._rooms_copy)>0:
+        self.joinRoom(self._rooms_copy.pop())
     self.main()
   
   def stop(self):
