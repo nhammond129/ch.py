@@ -916,6 +916,7 @@ class Room:
     """
     if msg==None:
       return
+    msg = msg.rstrip()
     if not html:
       msg = msg.replace("<", "&lt;").replace(">", "&gt;")
     if len(msg) > self.mgr._maxLength:
