@@ -449,7 +449,7 @@ class Room:
     self._server = server or getServer(room)
     self._port = port or 443
     self._mgr = mgr
-    
+
     # Under the hood
     self._connected = False
     self._reconnecting = False
@@ -468,6 +468,7 @@ class Room:
     self._userCount = 0
     self._pingTask = None
     self._botname = None
+    self._currentname = None
     self._users = dict()
     self._msgs = dict()
     self._wlock = False
@@ -537,7 +538,8 @@ class Room:
     """Authenticate."""
     # login as name with password
     if self.mgr.name and self.mgr.password:
-      self._sendCommand("bauth", self.name, self._uid, self.mgr.name, self.mgr.password)                
+      self._sendCommand("bauth", self.name, self._uid, self.mgr.name, self.mgr.password)
+      self._currentname = self.mgr.name
     # login as anon
     else:
       self._sendCommand("bauth", self.name)
@@ -555,6 +557,7 @@ class Room:
       return "#" + self.mgr.name
     elif self.mgr.name == None:
       return self._botname
+  def getCurrentname(self): return self._currentname
   def getManager(self): return self._mgr
   def getUserlist(self, mode = None, unique = None, memory = None):
     ul = None
@@ -590,6 +593,7 @@ class Room:
     
   name = property(getName)
   botname = property(getBotName)
+  currentname = property(getCurrentname)
   mgr = property(getManager)
   userlist = property(getUserlist)
   usernames = property(getUserNames)
@@ -647,10 +651,12 @@ class Room:
       aid = args[1][0:8]
       pid = "!anon" + getAnonId(n, aid)
       self._botname = pid
+      self._currentname = pid
       self.user._nameColor = n
     # if got name, join room as name and no password
     elif args[2] == "N" and self.mgr.password == None:
       self._sendCommand("blogin", self.mgr.name)
+      self._currentname = self.mgr.name
     # if got password but fail to login
     elif args[2] != "M": #unsuccesful login
       self._callEvent("onLoginFail")
@@ -660,12 +666,12 @@ class Room:
     self._aid = args[1][4:8]
     self._mods = set(map(lambda x: User(x), args[6].split(";")))
     self._i_log = list()
-  
+
   def rcmd_denied(self, args):
     self._disconnect()
     self._callEvent("onConnectFail")
     self._callEvent("onStartJoin", "denied")
-  
+
   def rcmd_inited(self, args):
     self._sendCommand("g_participants", "start")
     self._sendCommand("getpremium", "1")
@@ -690,7 +696,7 @@ class Room:
       if self.user._mrec: self.setRecordingMode(1)
     else:
       self._premium = False
-  
+
   def rcmd_mods(self, args):
     modnames = args
     mods = set(map(lambda x: User(x), modnames))
@@ -702,7 +708,7 @@ class Room:
       self._mods.remove(user)
       self._callEvent("onModRemove", user)
     self._callEvent("onModChange")
-  
+
   def rcmd_b(self, args):
     mtime = float(args[0])
     puid = args[3]
@@ -752,7 +758,7 @@ class Room:
         room = self
       )
     self._mqueue[i] = msg
-  
+
   def rcmd_u(self, args):
     temp = Struct(**self._mqueue)
     if hasattr(temp, args[0]):
@@ -766,7 +772,7 @@ class Room:
       msg.attach(self, args[1])
       self._addHistory(msg)
       self._callEvent("onMessage", msg.user, msg)
-  
+
   def rcmd_i(self, args):
     mtime = float(args[0])
     puid = args[3]
@@ -806,7 +812,7 @@ class Room:
       msg.user._fontSize = msg.fontSize
       msg.user._nameColor = msg.nameColor
     self._i_log.append(msg)
-  
+
   def rcmd_g_participants(self, args):
     args = ":".join(args)
     args = args.split(";")
@@ -820,7 +826,7 @@ class Room:
       )
       user.addSessionId(self, data[0])
       self._userlist.append(user)
-  
+
   def rcmd_participant(self, args):
     if args[0] == "0": #leave
       name = args[3].lower()
@@ -843,16 +849,16 @@ class Room:
       self._userlist.append(user)
       if doEvent or not self.mgr._userlistEventUnique:
         self._callEvent("onJoin", user)
-  
+
   def rcmd_show_fw(self, args):
     self._callEvent("onFloodWarning")
-  
+
   def rcmd_show_tb(self, args):
     self._callEvent("onFloodBan")
-  
+
   def rcmd_tb(self, args):
     self._callEvent("onFloodBanRepeat")
-  
+
   def rcmd_delete(self, args):
     msg = self.getMessage(args[0])
     if msg:
@@ -860,15 +866,15 @@ class Room:
         self._history.remove(msg)
         self._callEvent("onMessageDelete", msg.user, msg)
         msg.detach()
-  
+
   def rcmd_deleteall(self, args):
     for msgid in args:
       self.rcmd_delete([msgid])
-  
+
   def rcmd_n(self, args):
     self._userCount = int(args[0], 16)
     self._callEvent("onUserCountChange")
-  
+
   def rcmd_blocklist(self, args):
     self._banlist = list()
     sections = ":".join(args).split(";")
@@ -884,7 +890,7 @@ class Room:
         User(params[4]) #src
       ))
     self._callEvent("onBanlistUpdate")
-  
+
   def rcmd_blocked(self, args):
     if args[2] == "": return
     target = User(args[2])
@@ -892,22 +898,33 @@ class Room:
     self._banlist.append((args[0], args[1], target, float(args[4]), user))
     self._callEvent("onBan", user, target)
     self.requestBanlist()
-  
+
   def rcmd_unblocked(self, args):
     if args[2] == "": return
     target = User(args[2])
     user = User(args[3])
     self._callEvent("onUnban", user, target)
     self.requestBanlist()
-  
+
   ####
   # Commands
   ####
+  def login(self, NAME, PASS = None):
+    if PASS:
+      self._sendCommand("blogin", NAME, PASS)
+    else:
+      self._sendCommand("blogin", NAME)
+    self._currentname = NAME
+
+  def logout(self):
+    self._sendCommand("blogout")
+    self._currentname = None
+
   def ping(self):
     """Send a ping."""
     self._sendCommand("")
     self._callEvent("onPing")
-  
+
   def rawMessage(self, msg):
     """
     Send a message without n and f tags.
@@ -917,7 +934,7 @@ class Room:
     """
     if not self._silent:
       self._sendCommand("bmsg:tl2r", msg)
-  
+
   def message(self, msg, html = False):
     """
     Send a message.
@@ -939,35 +956,36 @@ class Room:
           self.message(sect, html = html)
       return
     msg = "<n" + self.user.nameColor + "/>" + msg
-    msg = "<f x%0.2i%s=\"%s\">" %(self.user.fontSize, self.user.fontColor, self.user.fontFace) + msg
+    if not self._currentname.startswith("!anon"):
+      msg = "<f x%0.2i%s=\"%s\">" %(self.user.fontSize, self.user.fontColor, self.user.fontFace) + msg
     self.rawMessage(msg)
-  
+
   def setBgMode(self, mode):
     self._sendCommand("msgbg", str(mode))
-  
+
   def setRecordingMode(self, mode):
     self._sendCommand("msgmedia", str(mode))
 
   def addMod(self, user):
     """
     Add a moderator.
-    
+
     @type user: User
     @param user: User to mod.
     """
     if self.getLevel(self.user) == 2:
       self._sendCommand("addmod", user.name)
-    
+
   def removeMod(self, user):
     """
     Remove a moderator.
-    
+
     @type user: User
     @param user: User to demod.
     """
     if self.getLevel(self.user) == 2:
       self._sendCommand("removemod", user.name)
-  
+
   def flag(self, message):
     """
     Flag a message.
