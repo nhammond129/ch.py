@@ -45,10 +45,10 @@ else:
 # Constants
 ################################################################
 Userlist_Recent = 0
-Userlist_All    = 1
+Userlist_All = 1
 
 BigMessage_Multiple = 0
-BigMessage_Cut      = 1
+BigMessage_Cut = 1
 
 ################################################################
 # Struct class
@@ -66,7 +66,7 @@ tsweights = [['5', 75], ['6', 75], ['7', 75], ['8', 75], ['16', 75], ['17', 75],
 def getServer(group):
   """
   Get the server host for a certain room.
-  
+
   @type group: str
   @param group: room name
   
@@ -108,10 +108,10 @@ def genUid():
 def clean_message(msg):
   """
   Clean a message and return the message, n tag and f tag.
-  
+
   @type msg: str
   @param msg: the message
-  
+
   @rtype: str, str, str
   @returns: cleaned message, n tag contents, f tag contents
   """
@@ -187,12 +187,12 @@ auth_re = re.compile(r"auth\.chatango\.com ?= ?([^;]*)", re.IGNORECASE)
 def _getAuth(name, password):
   """
   Request an auid using name and password.
-  
+
   @type name: str
   @param name: name
   @type password: str
   @param password: password
-  
+
   @rtype: str
   @return: auid
   """
@@ -242,7 +242,7 @@ class PM:
       self.unicodeCompat = False
     else:
       self.unicodeCompat = True
-  
+
   ####
   # Connections
   ####
@@ -255,7 +255,7 @@ class PM:
     if not self._auth(): return
     self._pingTask = self.mgr.setInterval(self._mgr._pingDelay, self.ping)
     self._connected = True
-  
+
   def _auth(self):
     self._auid = _getAuth(self._mgr.name, self._mgr.password)
     if self._auid == None:
@@ -266,23 +266,23 @@ class PM:
     self._sendCommand("tlogin", self._auid, "2")
     self._setWriteLock(True)
     return True
-  
+
   def disconnect(self):
     self._disconnect()
     self._callEvent("onPMDisconnect")
-  
+
   def _disconnect(self):
     self._connected = False
     self._sock.close()
     self._sock = None
-  
+
   ####
   # Feed
   ####
   def _feed(self, data):
     """
     Feed data to the connection.
-    
+
     @type data: bytes
     @param data: data to be fed
     """
@@ -295,11 +295,11 @@ class PM:
         else:
           self._process(food.decode(errors="replace").rstrip("\r\n"))
       self._rbuf = data[-1]
-  
+
   def _process(self, data):
     """
     Process a command string.
-    
+
     @type data: str
     @param data: the command string
     """
@@ -309,18 +309,18 @@ class PM:
     func = "rcmd_" + cmd
     if hasattr(self, func):
       getattr(self, func)(args)
-  
+
   ####
   # Properties
   ####
   def getManager(self): return self._mgr
   def getContacts(self): return self._contacts
   def getBlocklist(self): return self._blocklist
-  
+
   mgr = property(getManager)
   contacts = property(getContacts)
   blocklist = property(getBlocklist)
-  
+
   ####
   # Received Commands
   ####
@@ -329,7 +329,7 @@ class PM:
     self._sendCommand("wl")
     self._sendCommand("getblock")
     self._callEvent("onPMConnect")
-  
+
   def rcmd_wl(self, args):
     self._contacts = set()
     for i in range(len(args) // 4):
@@ -337,94 +337,94 @@ class PM:
       user = User(name)
       self._contacts.add(user)
     self._callEvent("onPMContactlistReceive")
-  
+
   def rcmd_block_list(self, args):
     self._blocklist = set()
     for name in args:
       if name == "": continue
       self._blocklist.add(User(name))
-  
+
   def rcmd_DENIED(self, args):
     self._disconnect()
     self._callEvent("onLoginFail")
-  
+
   def rcmd_msg(self, args):
     user = User(args[0])
     body = strip_html(":".join(args[5:])) if self.unicodeCompat else  strip_html(":".join(args[5:])) .encode("ascii","ignore").decode("ascii")
     self._callEvent("onPMMessage", user, body)
-  
+
   def rcmd_msgoff(self, args):
     user = User(args[0])
     body = strip_html(":".join(args[5:]))
     self._callEvent("onPMOfflineMessage", user, body)
-  
+
   def rcmd_wlonline(self, args):
     self._callEvent("onPMContactOnline", User(args[0]))
-  
+
   def rcmd_wloffline(self, args):
     self._callEvent("onPMContactOffline", User(args[0]))
-  
+
   def rcmd_kickingoff(self, args):
     self.disconnect()
-  
+
   ####
   # Commands
   ####
   def ping(self):
     self._sendCommand("")
     self._callEvent("onPMPing")
-  
+
   def message(self, user, msg):
     if msg!=None:
       self._sendCommand("msg", user.name, msg)
-  
+
   def addContact(self, user):
     if user not in self._contacts:
       self._sendCommand("wladd", user.name)
       self._contacts.add(user)
       self._callEvent("onPMContactAdd", user)
-  
+
   def removeContact(self, user):
     if user in self._contacts:
       self._sendCommand("wldelete", user.name)
       self._contacts.remove(user)
       self._callEvent("onPMContactRemove", user)
-  
+
   def block(self, user):
     if user not in self._blocklist:
       self._sendCommand("block", user.name)
       self._block.remove(user)
       self._callEvent("onPMBlock", user)
-  
+
   def unblock(self, user):
     if user in self._blocklist:
       self._sendCommand("unblock", user.name)
       self._block.remove(user)
       self._callEvent("onPMUnblock", user)
-  
+
   ####
   # Util
   ####
   def _callEvent(self, evt, *args, **kw):
     getattr(self.mgr, evt)(self, *args, **kw)
     self.mgr.onEventCalled(self, evt, *args, **kw)
-  
+
   def _write(self, data):
     if self._wlock:
       self._wlockbuf += data
     else:
       self.mgr._write(self, data)
-  
+
   def _setWriteLock(self, lock):
     self._wlock = lock
     if self._wlock == False:
       self._write(self._wlockbuf)
       self._wlockbuf = b""
-  
+
   def _sendCommand(self, *args):
     """
     Send a command.
-    
+
     @type args: [str, str, ...]
     @param args: command and list of arguments
     """
@@ -478,16 +478,16 @@ class Room:
       self.unicodeCompat = False
     else:
       self.unicodeCompat = True
-    
+
     # Inited vars
     if self._mgr: self._connect()
-  
+
   ####
   # User and Message management
   ####
   def getMessage(self, mid):
     return self._msgs.get(mid)
-  
+
   def createMessage(self, msgid, **kw):
     if msgid not in self._msgs:
       msg = Message(msgid = msgid, **kw)
@@ -495,7 +495,7 @@ class Room:
     else:
       msg = self._msgs[msgid]
     return msg
-  
+
   ####
   # Connect/disconnect
   ####
@@ -509,11 +509,11 @@ class Room:
     self._auth()
     self._pingTask = self.mgr.setInterval(self.mgr._pingDelay, self.ping)
     if not self._reconnecting: self.connected = True
-  
+
   def reconnect(self):
     """Reconnect."""
     self._reconnect()
-  
+
   def _reconnect(self):
     """Reconnect."""
     self._reconnecting = True
@@ -522,12 +522,12 @@ class Room:
     self._uid = genUid()
     self._connect()
     self._reconnecting = False
-  
+
   def disconnect(self):
     """Disconnect."""
     self._disconnect()
     self._callEvent("onDisconnect")
-  
+
   def _disconnect(self):
     """Disconnect from the server."""
     if not self._reconnecting: self.connected = False
@@ -537,7 +537,7 @@ class Room:
     self._pingTask.cancel()
     self._sock.close()
     if not self._reconnecting: del self.mgr._rooms[self.name]
-  
+
   def _auth(self):
     """Authenticate."""
     # login as name with password
@@ -549,7 +549,7 @@ class Room:
       self._sendCommand("bauth", self.name)
 
     self._setWriteLock(True)
-  
+
   ####
   # Properties
   ####
@@ -594,7 +594,7 @@ class Room:
   def getSilent(self): return self._silent
   def setSilent(self, val): self._silent = val
   def getBanlist(self): return [record[2] for record in self._banlist]
-    
+
   name = property(getName)
   botname = property(getBotName)
   currentname = property(getCurrentname)
@@ -609,14 +609,14 @@ class Room:
   usercount = property(getUserCount)
   silent = property(getSilent, setSilent)
   banlist = property(getBanlist)
-  
+
   ####
   # Feed/process
   ####
   def _feed(self, data):
     """
     Feed data to the connection.
-    
+
     @type data: bytes
     @param data: data to be fed
     """
@@ -629,7 +629,7 @@ class Room:
         else:
           self._process(food.decode(errors="replace").rstrip("\r\n"))
       self._rbuf = data[-1]
-  
+
   def _process(self, data):
     """
     Process a command string.
@@ -643,7 +643,7 @@ class Room:
     func = "rcmd_" + cmd
     if hasattr(self, func):
       getattr(self, func)(args)
-  
+
   ####
   # Received Commands
   ####
@@ -692,7 +692,7 @@ class Room:
       self._callEvent("onReconnect")
     self._connectAmmount += 1
     self._setWriteLock(False)
-  
+
   def rcmd_premium(self, args):
     if float(args[1]) > time.time():
       self._premium = True
@@ -891,7 +891,6 @@ class Room:
   def rcmd_unblocked(self, args):
     if args[2] == "": return
     target = User(args[2])
-    user = User(args[3])
     self._callEvent("onUnban", user, target)
     self.requestBanlist()
 
@@ -907,7 +906,7 @@ class Room:
 
   def logout(self):
     self._sendCommand("blogout")
-    self._currentname = None
+    self._currentname = self._botname
 
   def ping(self):
     """Send a ping."""
@@ -917,7 +916,7 @@ class Room:
   def rawMessage(self, msg):
     """
     Send a message without n and f tags.
-    
+
     @type msg: str
     @param msg: message
     """
@@ -927,7 +926,7 @@ class Room:
   def message(self, msg, html = False):
     """
     Send a message.
-    
+
     @type msg: str
     @param msg: message
     """
@@ -946,7 +945,7 @@ class Room:
           self.message(sect, html = html)
       return
     msg = "<n" + self.user.nameColor + "/>" + msg
-    if not self._currentname.startswith("!anon"):
+    if not self._currentname.startswith("!anon") or self._currentname == None:
       msg = "<f x%0.2i%s=\"%s\">" %(self.user.fontSize, self.user.fontColor, self.user.fontFace) + msg
     self.rawMessage(msg)
 
@@ -979,19 +978,19 @@ class Room:
   def flag(self, message):
     """
     Flag a message.
-    
+
     @type message: Message
     @param message: message to flag
     """
     self._sendCommand("g_flag", message.msgid)
-  
+
   def flagUser(self, user):
     """
     Flag a user.
-    
+
     @type user: User
     @param user: user to flag
-    
+
     @rtype: bool
     @return: whether a message to flag was found
     """
@@ -1000,27 +999,27 @@ class Room:
       self.flag(msg)
       return True
     return False
-  
+
   def delete(self, message):
     """
     Delete a message. (Moderator only)
-    
+
     @type message: Message
     @param message: message to delete
     """
     if self.getLevel(self.user) > 0:
       self._sendCommand("delmsg", message.msgid)
-  
+
   def rawClearUser(self, unid):
     self._sendCommand("delallmsg", unid)
-  
+
   def clearUser(self, user):
     """
     Clear all of a user's messages. (Moderator only)
-    
+
     @type user: User
     @param user: user to delete messages of
-    
+
     @rtype: bool
     @return: whether a message to delete was found
     """
@@ -1030,17 +1029,17 @@ class Room:
         self.rawClearUser(msg.unid)
       return True
     return False
-  
+
   def clearall(self):
     """Clear all messages. (Owner only)"""
     if self.getLevel(self.user) == 2:
       self._sendCommand("clearall")
-  
+
   def rawBan(self, name, ip, unid):
     """
     Execute the block command using specified arguments.
     (For advanced usage)
-    
+
     @type name: str
     @param name: name
     @type ip: str
@@ -1049,24 +1048,24 @@ class Room:
     @param unid: unid
     """
     self._sendCommand("block", unid, ip, name)
-  
+
   def ban(self, msg):
     """
     Ban a message's sender. (Moderator only)
-    
+
     @type message: Message
     @param message: message to ban sender of
     """
     if self.getLevel(self.user) > 0:
       self.rawBan(msg.user.name, msg.ip, msg.unid)
-  
+
   def banUser(self, user):
     """
     Ban a user. (Moderator only)
-    
+
     @type user: User
     @param user: user to ban
-    
+
     @rtype: bool
     @return: whether a message to ban the user was found
     """
@@ -1075,16 +1074,16 @@ class Room:
       self.ban(msg)
       return True
     return False
-  
+
   def requestBanlist(self):
     """Request an updated banlist."""
     self._sendCommand("blocklist", "block", "", "next", "500")
-  
+
   def rawUnban(self, name, ip, unid):
     """
     Execute the unblock command using specified arguments.
     (For advanced usage)
-    
+
     @type name: str
     @param name: name
     @type ip: str
@@ -1093,14 +1092,14 @@ class Room:
     @param unid: unid
     """
     self._sendCommand("removeblock", unid, ip, name)
-  
+
   def unban(self, user):
     """
     Unban a user. (Moderator only)
-    
+
     @type user: User
     @param user: user to unban
-    
+
     @rtype: bool
     @return: whether it succeeded
     """
@@ -1110,7 +1109,7 @@ class Room:
       return True
     else:
       return False
-  
+
   ####
   # Util
   ####
@@ -1119,27 +1118,27 @@ class Room:
       if record[2] == user:
         return record
     return None
-  
+
   def _callEvent(self, evt, *args, **kw):
     getattr(self.mgr, evt)(self, *args, **kw)
     self.mgr.onEventCalled(self, evt, *args, **kw)
-  
+
   def _write(self, data):
     if self._wlock:
       self._wlockbuf += data
     else:
       self.mgr._write(self, data)
-  
+
   def _setWriteLock(self, lock):
     self._wlock = lock
     if self._wlock == False:
       self._write(self._wlockbuf)
       self._wlockbuf = b""
-  
+
   def _sendCommand(self, *args):
     """
     Send a command.
-    
+
     @type args: [str, str, ...]
     @param args: command and list of arguments
     """
@@ -1149,12 +1148,12 @@ class Room:
     else:
       terminator = b"\r\n\x00"
     self._write(":".join(args).encode() + terminator)
-  
+
   def getLevel(self, user):
     if user == self._owner: return 2
     if user in self._mods: return 1
     return 0
-  
+
   def getLastMessage(self, user = None):
     if user:
       try:
@@ -1172,7 +1171,7 @@ class Room:
       except IndexError:
         return None
     return None
-  
+
   def findUser(self, name):
     name = name.lower()
     ul = self.getUserlist()
@@ -1184,14 +1183,14 @@ class Room:
         cname = n
     if cname: return udi[cname]
     else: return None
-  
+
   ####
   # History
   ####
   def _addHistory(self, msg):
     """
     Add a message to history.
-    
+
     @type msg: Message
     @param msg: message
     """
@@ -1221,7 +1220,7 @@ class RoomManager:
   _tooBigMessage = BigMessage_Multiple
   _maxLength = 1800
   _maxHistoryLength = 150
-  
+
   ####
   # Init
   ####
@@ -1236,17 +1235,17 @@ class RoomManager:
       self._pm = self._PM(mgr = self)
     else:
       self._pm = None
-  
+
   ####
   # Join/leave
   ####
   def joinRoom(self, room):
     """
     Join a room or return None if already joined.
-    
+
     @type room: str
     @param room: room to join
-    
+
     @rtype: Room or None
     @return: the room or nothing
     """
@@ -1257,11 +1256,11 @@ class RoomManager:
       return con
     else:
       return None
-  
+
   def leaveRoom(self, room):
     """
     Leave a room.
-    
+
     @type room: str
     @param room: room to leave
     """
@@ -1269,14 +1268,14 @@ class RoomManager:
     if room in self._rooms:
       con = self._rooms[room]
       con.disconnect()
-  
+
   def getRoom(self, room):
     """
     Get room with a name, or None if not connected to this room.
-    
+
     @type room: str
     @param room: room
-    
+
     @rtype: Room
     @return: the room
     """
@@ -1285,7 +1284,7 @@ class RoomManager:
       return self._rooms[room]
     else:
       return None
-  
+
   ####
   # Properties
   ####
@@ -1296,7 +1295,7 @@ class RoomManager:
   def getRoomNames(self): return set(self._rooms.keys())
   def getRooms_copy(self): return set(self._rooms_copy)
   def getPM(self): return self._pm
-  
+
   user = property(getUser)
   name = property(getName)
   password = property(getPassword)
@@ -1304,7 +1303,7 @@ class RoomManager:
   roomnames = property(getRoomNames)
   rooms_copy = property(getRooms_copy)
   pm = property(getPM)
-  
+
   ####
   # Virtual methods
   ####
@@ -1320,7 +1319,7 @@ class RoomManager:
         break
       except UnicodeEncodeError as ex:
         text = (text[0:ex.start]+'(unicode)'+text[ex.end:])
-  
+
   def onStartJoin(self, room, status):
     """Don't edit unless you know what you are doing"""
     if status == "ok":
@@ -1333,8 +1332,6 @@ class RoomManager:
       elif len(self._rooms_copy) > 0:
         self.joinRoom(self._rooms_copy.pop())
 
-
-  
   def onConnect(self, room):
     """
     Called when connected to the room.
@@ -1343,7 +1340,7 @@ class RoomManager:
     @param room: room where the event occured
     """
     pass
-  
+
   def onReconnect(self, room):
     """
     Called when reconnected to the room.
@@ -1352,7 +1349,7 @@ class RoomManager:
     @param room: room where the event occured
     """
     pass
-  
+
   def onConnectFail(self, room):
     """
     Called when the connection failed.
@@ -1361,7 +1358,7 @@ class RoomManager:
     @param room: room where the event occured
     """
     pass
-  
+
   def onDisconnect(self, room):
     """
     Called when the client gets disconnected.
@@ -1370,7 +1367,7 @@ class RoomManager:
     @param room: room where the event occured
     """
     pass
-  
+
   def onLoginFail(self, room):
     """
     Called on login failure, disconnects after.
@@ -1379,7 +1376,7 @@ class RoomManager:
     @param room: room where the event occured
     """
     pass
-  
+
   def onFloodBan(self, room):
     """
     Called when either flood banned or flagged.
@@ -1388,29 +1385,29 @@ class RoomManager:
     @param room: room where the event occured
     """
     pass
-  
+
   def onFloodBanRepeat(self, room):
     """
     Called when trying to send something when floodbanned.
-    
+
     @type room: Room
     @param room: room where the event occured
     """
     pass
-  
+
   def onFloodWarning(self, room):
     """
     Called when an overflow warning gets received.
-    
+
     @type room: Room
     @param room: room where the event occured
     """
     pass
-  
+
   def onMessageDelete(self, room, user, message):
     """
     Called when a message gets deleted.
-    
+
     @type room: Room
     @param room: room where the event occured
     @type user: User
@@ -1419,38 +1416,38 @@ class RoomManager:
     @param message: message that got deleted
     """
     pass
-  
+
   def onModChange(self, room):
     """
     Called when the moderator list changes.
-    
+
     @type room: Room
     @param room: room where the event occured
     """
     pass
-  
+
   def onModAdd(self, room, user):
     """
     Called when a moderator gets added.
-    
+
     @type room: Room
     @param room: room where the event occured
     """
     pass
-  
+
   def onModRemove(self, room, user):
     """
     Called when a moderator gets removed.
-    
+
     @type room: Room
     @param room: room where the event occured
     """
     pass
-  
+
   def onMessage(self, room, user, message):
     """
     Called when a message gets received.
-    
+
     @type room: Room
     @param room: room where the event occured
     @type user: User
@@ -1459,11 +1456,11 @@ class RoomManager:
     @param message: received message
     """
     pass
-  
+
   def onHistoryMessage(self, room, user, message):
     """
     Called when a message gets received from history.
-    
+
     @type room: Room
     @param room: room where the event occured
     @type user: User
@@ -1472,62 +1469,62 @@ class RoomManager:
     @param message: the message that got added
     """
     pass
-  
+
   def onJoin(self, room, user):
     """
     Called when a user joins. Anonymous users get ignored here.
-    
+
     @type room: Room
     @param room: room where the event occured
     @type user: User
     @param user: the user that has joined
     """
     pass
-  
+
   def onLeave(self, room, user):
     """
     Called when a user leaves. Anonymous users get ignored here.
-    
+
     @type room: Room
     @param room: room where the event occured
     @type user: User
     @param user: the user that has left
     """
     pass
-  
+
   def onRaw(self, room, raw):
     """
     Called before any command parsing occurs.
-    
+
     @type room: Room
     @param room: room where the event occured
     @type raw: str
     @param raw: raw command data
     """
     pass
-  
+
   def onPing(self, room):
     """
     Called when a ping gets sent.
-    
+
     @type room: Room
     @param room: room where the event occured
     """
     pass
-  
+
   def onUserCountChange(self, room):
     """
     Called when the user count changes.
-    
+
     @type room: Room
     @param room: room where the event occured
     """
     pass
-  
+
   def onBan(self, room, user, target):
     """
     Called when a user gets banned.
-    
+
     @type room: Room
     @param room: room where the event occured
     @type user: User
@@ -1536,11 +1533,11 @@ class RoomManager:
     @param target: user that got banned
     """
     pass
-  
+ 
   def onUnban(self, room, user, target):
     """
     Called when a user gets unbanned.
-    
+
     @type room: Room
     @param room: room where the event occured
     @type user: User
@@ -1549,73 +1546,73 @@ class RoomManager:
     @param target: user that got unbanned
     """
     pass
-  
+
   def onBanlistUpdate(self, room):
     """
     Called when a banlist gets updated.
-    
+
     @type room: Room
     @param room: room where the event occured
     """
     pass
-  
+
   def onPMConnect(self, pm):
     pass
-  
+
   def onPMDisconnect(self, pm):
     pass
-  
+
   def onPMPing(self, pm):
     pass
-  
+
   def onPMMessage(self, pm, user, body):
     pass
-  
+
   def onPMOfflineMessage(self, pm, user, body):
     pass
-  
+
   def onPMContactlistReceive(self, pm):
     pass
-  
+
   def onPMBlocklistReceive(self, pm):
     pass
-  
+
   def onPMContactAdd(self, pm, user):
     pass
-  
+
   def onPMContactRemove(self, pm, user):
     pass
-  
+
   def onPMBlock(self, pm, user):
     pass
-  
+
   def onPMUnblock(self, pm, user):
     pass
-  
+
   def onPMContactOnline(self, pm, user):
     pass
-  
+
   def onPMContactOffline(self, pm, user):
     pass
-  
+
   def onEventCalled(self, room, evt, *args, **kw):
     """
     Called on every room-based event.
-    
+
     @type room: Room
     @param room: room where the event occured
     @type evt: str
     @param evt: the event
     """
     pass
-  
+
   ####
   # Deferring
   ####
   def deferToThread(self, callback, func, *args, **kw):
     """
     Defer a function to a thread and callback the return value.
-    
+
     @type callback: function
     @param callback: function to call on completion
     @type cbargs: tuple or list
@@ -1627,7 +1624,7 @@ class RoomManager:
       ret = func(*args, **kw)
       self.setTimeout(0, callback, ret)
     threading._start_new_thread(f, (func, callback) + args, kw)
-  
+
   ####
   # Scheduling
   ####
@@ -1635,7 +1632,7 @@ class RoomManager:
     def cancel(self):
       """Sugar for removeTask."""
       self.mgr.removeTask(self)
-  
+
   def _tick(self):
     now = time.time()
     for task in set(self._tasks):
@@ -1645,16 +1642,16 @@ class RoomManager:
           task.target = now + task.timeout
         else:
           self._tasks.remove(task)
-  
+
   def setTimeout(self, timeout, func, *args, **kw):
     """
     Call a function after at least timeout seconds with specified arguments.
-    
+
     @type timeout: int
     @param timeout: timeout
     @type func: function
     @param func: function to call
-    
+
     @rtype: _Task
     @return: object representing the task
     """
@@ -1668,16 +1665,16 @@ class RoomManager:
     task.kw = kw
     self._tasks.add(task)
     return task
-  
+
   def setInterval(self, timeout, func, *args, **kw):
     """
     Call a function at least every timeout seconds with specified arguments.
-    
+
     @type timeout: int
     @param timeout: timeout
     @type func: function
     @param func: function to call
-    
+
     @rtype: _Task
     @return: object representing the task
     """
@@ -1691,28 +1688,28 @@ class RoomManager:
     task.kw = kw
     self._tasks.add(task)
     return task
-  
+
   def removeTask(self, task):
     """
     Cancel a task.
-    
+
     @type task: _Task
     @param task: task to cancel
     """
     self._tasks.remove(task)
-  
+
   ####
   # Util
   ####
   def _write(self, room, data):
     room._wbuf += data
-  
+
   def getConnections(self):
     li = list(self._rooms.values())
     if self._pm:
       li.append(self._pm)
     return [c for c in li if c._sock != None]
-  
+
   ####
   # Main
   ####
@@ -1742,12 +1739,12 @@ class RoomManager:
         except socket.error:
           pass
       self._tick()
-  
+
   @classmethod
   def easy_start(cl, rooms = None, name = None, password = None, pm = True):
     """
     Prompts the user for missing info, then starts.
-    
+
     @type rooms: list
     @param room: rooms to join
     @type name: str
@@ -1766,12 +1763,12 @@ class RoomManager:
     if len(self._rooms_copy)>0:
         self.joinRoom(self._rooms_copy.pop())
     self.main()
-  
+
   def stop(self):
     for conn in list(self._rooms.values()):
       conn.disconnect()
     self._running = False
-  
+
   ####
   # Commands
   ####
@@ -1780,56 +1777,56 @@ class RoomManager:
     self.user._mbg = True
     for room in self.rooms:
       room.setBgMode(1)
-  
+
   def disableBg(self):
     """Disable background."""
     self.user._mbg = False
     for room in self.rooms:
       room.setBgMode(0)
-  
+
   def enableRecording(self):
     """Enable recording if available."""
     self.user._mrec = True
     for room in self.rooms:
       room.setRecordingMode(1)
-  
+
   def disableRecording(self):
     """Disable recording."""
     self.user._mrec = False
     for room in self.rooms:
       room.setRecordingMode(0)
-  
+
   def setNameColor(self, color3x):
     """
     Set name color.
-    
+
     @type color3x: str
     @param color3x: a 3-char RGB hex code for the color
     """
     self.user._nameColor = color3x
-  
+
   def setFontColor(self, color3x):
     """
     Set font color.
-    
+
     @type color3x: str
     @param color3x: a 3-char RGB hex code for the color
     """
     self.user._fontColor = color3x
-  
+
   def setFontFace(self, face):
     """
     Set font face/family.
-    
+
     @type face: str
     @param face: the font face
     """
     self.user._fontFace = face
-  
+
   def setFontSize(self, size):
     """
     Set font size.
-    
+
     @type size: int
     @param size: the font size (limited: 9 to 22)
     """
@@ -1868,7 +1865,7 @@ class _User:
     for attr, val in kw.items():
       if val == None: continue
       setattr(self, "_" + attr, val)
-  
+
   ####
   # Properties
   ####
@@ -1884,7 +1881,7 @@ class _User:
   def getFontFace(self): return self._fontFace
   def getFontSize(self): return self._fontSize
   def getNameColor(self): return self._nameColor
-  
+
   name = property(getName)
   sessionids = property(getSessionIds)
   rooms = property(getRooms)
@@ -1893,7 +1890,7 @@ class _User:
   fontFace = property(getFontFace)
   fontSize = property(getFontSize)
   nameColor = property(getNameColor)
-  
+
   ####
   # Util
   ####
@@ -1901,7 +1898,7 @@ class _User:
     if room not in self._sids:
       self._sids[room] = set()
     self._sids[room].add(sid)
-  
+
   def removeSessionId(self, room, sid):
     try:
       self._sids[room].remove(sid)
@@ -1909,13 +1906,13 @@ class _User:
         del self._sids[room]
     except KeyError:
       pass
-  
+
   def clearSessionIds(self, room):
     try:
       del self._sids[room]
     except KeyError:
       pass
-  
+
   def hasSessionId(self, room, sid):
     try:
       if sid in self._sids[room]:
@@ -1924,7 +1921,7 @@ class _User:
         return False
     except KeyError:
       return False
-  
+
   ####
   # Repr
   ####
@@ -1942,7 +1939,7 @@ class Message:
   def attach(self, room, msgid):
     """
     Attach the Message to a message id.
-    
+
     @type msgid: str
     @param msgid: message id
     """
@@ -1950,13 +1947,13 @@ class Message:
       self._room = room
       self._msgid = msgid
       self._room._msgs[msgid] = self
-  
+
   def detach(self):
     """Detach the Message."""
     if self._msgid != None and self._msgid in self._room._msgs:
       del self._room._msgs[self._msgid]
       self._msgid = None
-  
+
   ####
   # Init
   ####
@@ -1976,7 +1973,7 @@ class Message:
     for attr, val in kw.items():
       if val == None: continue
       setattr(self, "_" + attr, val)
-  
+
   ####
   # Properties
   ####
@@ -1992,7 +1989,7 @@ class Message:
   def getRoom(self): return self._room
   def getRaw(self): return self._raw
   def getUnid(self): return self._unid
-  
+
   msgid = property(getId)
   time = property(getTime)
   user = property(getUser)
