@@ -1,6 +1,8 @@
 #!/usr/bin/python
 import ch
+
 class TestBot(ch.RoomManager):
+
   def onConnect(self, room):
     print("Connected to "+room.name)
 
@@ -12,7 +14,8 @@ class TestBot(ch.RoomManager):
 
   def onMessage(self, room, user, message):
     # Use with PsyfrBot framework? :3
-    print(user.name+":"+message.body)
+    self.safePrint(user.name + ': ' + message.body)
+
     if message.body.startswith("!a"):
       room.message("AAAAAAAAAAAAAA")
 
@@ -20,7 +23,7 @@ class TestBot(ch.RoomManager):
     print("You are flood banned in "+room.name)
 
   def onPMMessage(self, pm, user, body):
-    print("PM:"+user.name+": "+body)
+    self.safePrint('PM: ' + user.name + ': ' + body)
     pm.message(user, body) # echo
 
 if __name__ == "__main__":

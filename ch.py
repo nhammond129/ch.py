@@ -105,10 +105,6 @@ def genUid():
 ################################################################
 # Message stuff
 ################################################################
-if sys.version_info[0] < 3 or sys.platform.startswith("win") and not 'idlelib' in sys.modules:
-  def BOMdefuser(content):
-    return content.encode("ascii","ignore").decode("ascii")
-
 def clean_message(msg):
   """
   Clean a message and return the message, n tag and f tag.
@@ -242,6 +238,10 @@ class PM:
     self._rbuf = b""
     self._pingTask = None
     self._connect()
+    if sys.version_info[0] < 3 and sys.platform.startswith("win"):
+      self.unicodeCompat = False
+    else:
+      self.unicodeCompat = True
   
   ####
   # Connections
@@ -290,10 +290,10 @@ class PM:
     while self._rbuf.find(b"\x00") != -1:
       data = self._rbuf.split(b"\x00")
       for food in data[:-1]:
-        if sys.version_info[0] < 3 or sys.platform.startswith("win") and not 'idlelib' in sys.modules:
-          self._process(food.decode(errors="replace").rstrip("\r\n")) #numnumz ;3
+        if self.unicodeCompat:
+          self._process(food.decode().rstrip("\r\n"))
         else:
-          self._process(food.decode().rstrip("\r\n")) #numnumz ;3
+          self._process(food.decode(errors="replace").rstrip("\r\n"))
       self._rbuf = data[-1]
   
   def _process(self, data):
@@ -350,7 +350,7 @@ class PM:
   
   def rcmd_msg(self, args):
     user = User(args[0])
-    body = strip_html(":".join(args[5:]))
+    body = strip_html(":".join(args[5:])) if self.unicodeCompat else  strip_html(":".join(args[5:])) .encode("ascii","ignore").decode("ascii")
     self._callEvent("onPMMessage", user, body)
   
   def rcmd_msgoff(self, args):
@@ -474,6 +474,10 @@ class Room:
     self._wlock = False
     self._silent = False
     self._banlist = list()
+    if sys.version_info[0] < 3 and sys.platform.startswith("win"):
+      self.unicodeCompat = False
+    else:
+      self.unicodeCompat = True
     
     # Inited vars
     if self._mgr: self._connect()
@@ -620,10 +624,10 @@ class Room:
     while self._rbuf.find(b"\x00") != -1:
       data = self._rbuf.split(b"\x00")
       for food in data[:-1]:
-        if sys.version_info[0] < 3 or sys.platform.startswith("win") and not 'idlelib' in sys.modules:
-          self._process(food.decode(errors="replace").rstrip("\r\n")) #numnumx ;3
+        if self.unicodeCompat:
+          self._process(food.decode().rstrip("\r\n"))
         else:
-          self._process(food.decode().rstrip("\r\n")) #numnumz ;3
+          self._process(food.decode(errors="replace").rstrip("\r\n"))
       self._rbuf = data[-1]
   
   def _process(self, data):
@@ -714,7 +718,7 @@ class Room:
     puid = args[3]
     ip = args[6]
     name = args[1]
-    rawmsg = ":".join(args[8:])
+    rawmsg = ":".join(args[9:]) if self.unicodeCompat else ":".join(args[9:]).encode("ascii","ignore").decode("ascii")
     msg, n, f = clean_message(rawmsg)
     if name == "":
       nameColor = None
@@ -729,34 +733,19 @@ class Room:
     #Create an anonymous message and queue it because msgid is unknown.
     if f: fontColor, fontFace, fontSize = parseFont(f)
     else: fontColor, fontFace, fontSize = None, None, None
-    if sys.version_info[0] < 3 or sys.platform.startswith("win") and not 'idlelib' in sys.modules:
-      msg = Message(
-        time = mtime,
-        user = User(name),
-        body = BOMdefuser(msg).encode("ASCII").decode("ASCII","replace")[1:],
-        raw = BOMdefuser(rawmsg).encode("ASCII").decode("ASCII","replace")[1:],
-        ip = ip,
-        nameColor = nameColor,
-        fontColor = fontColor,
-        fontFace = fontFace,
-        fontSize = fontSize,
-        unid = unid,
-        room = self
-      )
-    else:
-      msg = Message(
-        time = mtime,
-        user = User(name),
-        body = msg[1:],
-        raw = rawmsg[1:],
-        ip = ip,
-        nameColor = nameColor,
-        fontColor = fontColor,
-        fontFace = fontFace,
-        fontSize = fontSize,
-        unid = unid,
-        room = self
-      )
+    msg = Message(
+      time = mtime,
+      user = User(name),
+      body = msg,
+      raw = rawmsg,
+      ip = ip,
+      nameColor = nameColor,
+      fontColor = fontColor,
+      fontFace = fontFace,
+      fontSize = fontSize,
+      unid = unid,
+      room = self
+    )
     self._mqueue[i] = msg
 
   def rcmd_u(self, args):
@@ -944,6 +933,7 @@ class Room:
     """
     if msg==None:
       return
+    msg = msg.rstrip()
     if not html:
       msg = msg.replace("<", "&lt;").replace(">", "&gt;")
     if len(msg) > self.mgr._maxLength:
@@ -1321,18 +1311,27 @@ class RoomManager:
   def onInit(self):
     """Called on init."""
     pass
+
+  def safePrint(self, text):
+    """ use this to safely print text with unicode"""
+    while True:
+      try:
+        print(text)
+        break
+      except UnicodeEncodeError as ex:
+        text = (text[0:ex.start]+'(unicode)'+text[ex.end:])
   
   def onStartJoin(self, room, status):
     """Don't edit unless you know what you are doing"""
     if status == "ok":
-      if self.rooms_copy == []: pass
-      elif len(self.rooms_copy) > 0:
-        self.joinRoom(self.rooms_copy.pop())
+      if self._rooms_copy == []: pass
+      elif len(self._rooms_copy) > 0:
+        self.joinRoom(self._rooms_copy.pop())
 
     elif status == "denied": # if it fail to connect, skip it
-      if self.rooms_copy == []: pass
-      elif len(self.rooms_copy) > 0:
-        self.joinRoom(self.rooms_copy.pop())
+      if self._rooms_copy == []: pass
+      elif len(self._rooms_copy) > 0:
+        self.joinRoom(self._rooms_copy.pop())
 
 
   
@@ -1764,8 +1763,8 @@ class RoomManager:
     if password == "": password = None
     self = cl(name, password, pm = pm)
     self._rooms_copy=rooms[:]
-    if len(self.rooms_copy)>0:
-        self.joinRoom(self.rooms_copy.pop())
+    if len(self._rooms_copy)>0:
+        self.joinRoom(self._rooms_copy.pop())
     self.main()
   
   def stop(self):
