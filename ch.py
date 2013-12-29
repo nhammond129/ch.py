@@ -23,9 +23,11 @@ import socket
 import threading
 import time
 import random
+import traceback
 import re
 import sys
 import select
+import timestamp
 
 
 ################################################################
@@ -50,6 +52,11 @@ Userlist_All = 1
 BigMessage_Multiple = 0
 BigMessage_Cut = 1
 
+
+
+#VARS
+
+watchusers = False
 ################################################################
 # Struct class
 ################################################################
@@ -247,14 +254,17 @@ class PM:
   # Connections
   ####
   def _connect(self):
-    self._wbuf = b""
-    self._sock = socket.socket()
-    self._sock.connect((self._mgr._PMHost, self._mgr._PMPort))
-    self._sock.setblocking(False)
-    self._firstCommand = True
-    if not self._auth(): return
-    self._pingTask = self.mgr.setInterval(self._mgr._pingDelay, self.ping)
-    self._connected = True
+    try:
+      self._wbuf = b""
+      self._sock = socket.socket()
+      self._sock.connect((self._mgr._PMHost, self._mgr._PMPort))
+      self._sock.setblocking(False)
+      self._firstCommand = True
+      if not self._auth(): return
+      self._pingTask = self.mgr.setInterval(self._mgr._pingDelay, self.ping)
+      self._connected = True
+    except Exception as e:
+      return print (e)
 
   def _auth(self):
     self._auid = _getAuth(self._mgr.name, self._mgr.password)
@@ -500,15 +510,18 @@ class Room:
   # Connect/disconnect
   ####
   def _connect(self):
-    """Connect to the server."""
-    self._sock = socket.socket()
-    self._sock.connect((self._server, self._port))
-    self._sock.setblocking(False)
-    self._firstCommand = True
-    self._wbuf = b""
-    self._auth()
-    self._pingTask = self.mgr.setInterval(self.mgr._pingDelay, self.ping)
-    if not self._reconnecting: self.connected = True
+    try:
+      """Connect to the server."""
+      self._sock = socket.socket()
+      self._sock.connect((self._server, self._port))
+      self._sock.setblocking(False)
+      self._firstCommand = True
+      self._wbuf = b""
+      self._auth()
+      self._pingTask = self.mgr.setInterval(self.mgr._pingDelay, self.ping)
+      if not self._reconnecting: self.connected = True
+    except Exception as e:
+      return print (e)
 
   def reconnect(self):
     """Reconnect."""
@@ -738,6 +751,7 @@ class Room:
       user = User(name),
       body = msg,
       raw = rawmsg,
+      uid = puid,
       ip = ip,
       nameColor = nameColor,
       fontColor = fontColor,
@@ -1339,7 +1353,10 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    pass
+    output = "Successfully connected to " + room.getName() + "!" + \
+               "\t(" + timestamp._getLongTimeStamp() + ")"
+
+    print(output)
 
   def onReconnect(self, room):
     """
@@ -1348,7 +1365,9 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    pass
+    output = "Reconnected to " + room.getName() + "."
+
+    print(output)
 
   def onConnectFail(self, room):
     """
@@ -1357,7 +1376,7 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    pass
+    room.reconnect()
 
   def onDisconnect(self, room):
     """
@@ -1366,7 +1385,10 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    pass
+    output = "Disconnected from " + room.getName() + "." + \
+             "\t(" + timestamp._getLongTimeStamp() + ")"
+
+    print(output)
 
   def onLoginFail(self, room):
     """
@@ -1384,7 +1406,9 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    pass
+    output = "Flagged.  Please wait 15 minutes."
+
+    print(output)
 
   def onFloodBanRepeat(self, room):
     """
@@ -1393,7 +1417,9 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    pass
+    output = "Can't post:  still flagged."
+
+    print(output)
 
   def onFloodWarning(self, room):
     """
@@ -1402,7 +1428,9 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    pass
+    print("\a")
+    self.setTimeout(int(5), room.message, "This is a flood warning for " + room.getName() + ".")
+
 
   def onMessageDelete(self, room, user, message):
     """
@@ -1415,7 +1443,14 @@ class RoomManager:
     @type message: Message
     @param message: message that got deleted
     """
-    pass
+    output = "Post deleted.\n\t" + \
+             "Author:\t" + user.name + "\n\t" + \
+             "IP:\t\t" + message.ip + "\n\t" + \
+             "Message : "+ message.body + "\n\t" + \
+             "Room : "+room.name
+
+    print(output)
+
 
   def onModChange(self, room):
     """
@@ -1424,7 +1459,9 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    pass
+    output = "The mod list has been updated."
+
+    print(output)
 
   def onModAdd(self, room, user):
     """
@@ -1433,7 +1470,12 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    pass
+    output = "Someone was promoted to chat mod.\n\t" + \
+             "User:\t" + user.name + "\n\t" + \
+             "Time:\t" + timestamp._getShortTimeStamp() + "\n\t" + \
+             "Room:\t" + room.name
+
+    print(output)
 
   def onModRemove(self, room, user):
     """
@@ -1442,7 +1484,12 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    pass
+    output = "Someone was demoted from chat mod.\n\t" + \
+             "User:\t" + user.name + "\n\t" + \
+             "Time:\t" + timestamp._getShortTimeStamp() + "\n\t" + \
+             "Room:\t" + room.name
+
+    print(output)
 
   def onMessage(self, room, user, message):
     """
@@ -1455,6 +1502,14 @@ class RoomManager:
     @type message: Message
     @param message: received message
     """
+    #if u really wanna stalk everyone go ahead but this will slow ur shit down alot#
+    #output = "Message posted to room.\n\t" + \
+             #"Author:\t" + user.name + "\n\t" + \
+             #"IP:\t\t" + message.ip + "\n\t" + \
+             #"Body:\t" + message.getBody() + "\n\t" + \
+             #"Time:\t" + timestamp._getShortTimeStamp()
+
+    #print(output)
     pass
 
   def onHistoryMessage(self, room, user, message):
@@ -1479,7 +1534,15 @@ class RoomManager:
     @type user: User
     @param user: the user that has joined
     """
-    pass
+    output = "A known user joined the room.\n\t" + \
+             "User:\t" + user.name + "\n\t" + \
+             "Time:\t" + timestamp._getShortTimeStamp() + "\n\t" + \
+             "Room:\t" + room.name
+
+    if watchusers == True:
+        print(output)
+    elif watchusers == False:
+        pass
 
   def onLeave(self, room, user):
     """
@@ -1490,7 +1553,15 @@ class RoomManager:
     @type user: User
     @param user: the user that has left
     """
-    pass
+    output = "A known user left the room.\n\t" + \
+             "User:\t" + user.name + "\n\t" + \
+             "Time:\t" + timestamp._getShortTimeStamp() + "\n\t" + \
+             "Room:\t" + room.name
+
+    if watchusers == True:
+        print(output)
+    elif watchusers == False:
+        pass
 
   def onRaw(self, room, raw):
     """
@@ -1510,6 +1581,9 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
+    #output = "Ping sent in the room " + str(room.name) + "."
+
+    #print(output)
     pass
 
   def onUserCountChange(self, room):
@@ -1519,6 +1593,9 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
+    #output = "There are now " + str(room.getUserCount()) + " members in the room " + str(room.name) + "."
+
+    #print(output)
     pass
 
   def onBan(self, room, user, target):
@@ -1532,7 +1609,12 @@ class RoomManager:
     @type target: User
     @param target: user that got banned
     """
-    pass
+    try:
+      room.message("A user has been banned.<br> Banned: " + target.name + "<br> Banner: " + user.name + "<br> Time: " + timestamp._getShortTimeStamp() + "<br> Reason: " + room.getLastMessage(User(target.name)).body, True)
+      self.pm.message(User(target.name), "%s you have banned in %s by %s for %s" % (target.name, room.name, user.name, room.getLastMessage(User(target.name)).body))
+
+    except Exception as e:
+      room.message("Errors " +str(e), True)
  
   def onUnban(self, room, user, target):
     """
@@ -1545,7 +1627,11 @@ class RoomManager:
     @type target: User
     @param target: user that got unbanned
     """
-    pass
+    try:
+      room.message("A user has been unbanned. <br> Unbanned: " + target.name + "<br> Unbanner: " + user.name + "<br> Time: " + timestamp._getShortTimeStamp(), True)
+      
+    except Exception as e:
+      room.message("Errors " +str(e), True)
 
   def onBanlistUpdate(self, room):
     """
@@ -1557,12 +1643,21 @@ class RoomManager:
     pass
 
   def onPMConnect(self, pm):
-    pass
+    output = "Successfully connected to private chat!\t(" + \
+             timestamp._getLongTimeStamp() + ")"
+
+    print(output)
 
   def onPMDisconnect(self, pm):
-    pass
+    output = "Disconnected from private chat.\t(" + \
+             timestamp._getLongTimeStamp() + ")"
+
+    print(output)
 
   def onPMPing(self, pm):
+    #output = "Ping sent."
+
+    #print(output)
     pass
 
   def onPMMessage(self, pm, user, body):
@@ -1578,22 +1673,46 @@ class RoomManager:
     pass
 
   def onPMContactAdd(self, pm, user):
-    pass
+    output = "New contact added in private chat.\n\t" + \
+             "User:\t" + user.name + "\n\t" + \
+             "Time:\t" + timestamp._getShortTimeStamp()
+
+    print(output)
 
   def onPMContactRemove(self, pm, user):
-    pass
+    output = "Existing contact removed from private chat.\n\t" + \
+             "User:\t" + user.name + "\n\t" + \
+             "Time:\t" + timestamp._getShortTimeStamp()
+
+    print(output)
 
   def onPMBlock(self, pm, user):
-    pass
+    output = "User blocked from sending PMs To Me.\n\t" + \
+             "User:\t" + user.name + "\n\t" + \
+             "Time:\t" + timestamp._getShortTimeStamp()
+
+    print(output)
 
   def onPMUnblock(self, pm, user):
-    pass
+    output = "User unblocked from sending PMs To Me.\n\t" + \
+             "User:\t" + user.name + "\n\t" + \
+             "Time:\t" + timestamp._getShortTimeStamp()
 
+    print(output)
+    
   def onPMContactOnline(self, pm, user):
-    pass
+    output = "A user is now online.\n\t" + \
+             "User:\t" + user.name + "\n\t" + \
+             "Time:\t" + timestamp._getShortTimeStamp()
+
+    print(output)
 
   def onPMContactOffline(self, pm, user):
-    pass
+    output = "A user has gone offline.\n\t" + \
+             "User:\t" + user.name + "\n\t" + \
+             "Time:\t" + timestamp._getShortTimeStamp()
+
+    print(output)
 
   def onEventCalled(self, room, evt, *args, **kw):
     """
@@ -1981,6 +2100,7 @@ class Message:
   def getTime(self): return self._time
   def getUser(self): return self._user
   def getBody(self): return self._body
+  def getUid(self): return self._uid
   def getIP(self): return self._ip
   def getFontColor(self): return self._fontColor
   def getFontFace(self): return self._fontFace
@@ -1994,6 +2114,7 @@ class Message:
   time = property(getTime)
   user = property(getUser)
   body = property(getBody)
+  uid = property(getUid)
   room = property(getRoom)
   ip = property(getIP)
   fontColor = property(getFontColor)
