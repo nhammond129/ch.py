@@ -959,8 +959,7 @@ class Room:
           self.message(sect, html = html)
       return
     msg = "<n" + self.user.nameColor + "/>" + msg
-    if not self._currentname.startswith("!anon") or self._currentname == None:
-      msg = "<f x%0.2i%s=\"%s\">" %(self.user.fontSize, self.user.fontColor, self.user.fontFace) + msg
+    msg = "<f x%0.2i%s=\"%s\">" %(self.user.fontSize, self.user.fontColor, self.user.fontFace) + msg
     self.rawMessage(msg)
 
   def setBgMode(self, mode):
