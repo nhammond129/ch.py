@@ -574,7 +574,13 @@ class Room:
       return "#" + self.mgr.name
     elif self.mgr.name == None:
       return self._botname
-  def getCurrentname(self): return self._currentname
+  def getCurrentname(self):
+    if self.mgr.name and self.mgr.password:
+      return self.mgr.name
+    elif self.mgr.name and self.mgr.password == None:
+      return "#" + self.mgr.name
+    elif self.mgr.name == None:
+      return self._currentname
   def getManager(self): return self._mgr
   def getUserlist(self, mode = None, unique = None, memory = None):
     ul = None
@@ -959,7 +965,8 @@ class Room:
           self.message(sect, html = html)
       return
     msg = "<n" + self.user.nameColor + "/>" + msg
-    msg = "<f x%0.2i%s=\"%s\">" %(self.user.fontSize, self.user.fontColor, self.user.fontFace) + msg
+    if not self.getCurrentname().startswith("!anon"):
+      msg = "<f x%0.2i%s=\"%s\">" %(self.user.fontSize, self.user.fontColor, self.user.fontFace) + msg
     self.rawMessage(msg)
 
   def setBgMode(self, mode):
