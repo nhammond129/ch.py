@@ -264,7 +264,7 @@ class PM:
       self._pingTask = self.mgr.setInterval(self._mgr._pingDelay, self.ping)
       self._connected = True
     except Exception as e:
-      return print (e)
+      return sys.stdout.write(e)
 
   def _auth(self):
     self._auid = _getAuth(self._mgr.name, self._mgr.password)
@@ -521,7 +521,7 @@ class Room:
       self._pingTask = self.mgr.setInterval(self.mgr._pingDelay, self.ping)
       if not self._reconnecting: self.connected = True
     except Exception as e:
-      return print (e)
+      return sys.stdout.write(e)
 
   def reconnect(self):
     """Reconnect."""
@@ -1355,7 +1355,7 @@ class RoomManager:
     output = "Successfully connected to " + room.getName() + "!" + \
                "\t(" + timestamp._getLongTimeStamp() + ")"
 
-    print(output)
+    sys.stdout.write(output)
 
   def onReconnect(self, room):
     """
@@ -1366,7 +1366,7 @@ class RoomManager:
     """
     output = "Reconnected to " + room.getName() + "."
 
-    print(output)
+    sys.stdout.write(output)
 
   def onConnectFail(self, room):
     """
@@ -1387,7 +1387,7 @@ class RoomManager:
     output = "Disconnected from " + room.getName() + "." + \
              "\t(" + timestamp._getLongTimeStamp() + ")"
 
-    print(output)
+    sys.stdout.write(output)
 
   def onLoginFail(self, room):
     """
@@ -1407,7 +1407,7 @@ class RoomManager:
     """
     output = "Flagged.  Please wait 15 minutes."
 
-    print(output)
+    sys.stdout.write(output)
 
   def onFloodBanRepeat(self, room):
     """
@@ -1418,7 +1418,7 @@ class RoomManager:
     """
     output = "Can't post:  still flagged."
 
-    print(output)
+    sys.stdout.write(output)
 
   def onFloodWarning(self, room):
     """
@@ -1427,7 +1427,7 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    print("\a")
+    sys.stdout.write("\a")
     self.setTimeout(int(5), room.message, "This is a flood warning for " + room.getName() + ".")
 
 
@@ -1448,7 +1448,7 @@ class RoomManager:
              "Message : "+ message.body + "\n\t" + \
              "Room : "+room.name
 
-    print(output)
+    sys.stdout.write(output)
 
 
   def onModChange(self, room):
@@ -1460,7 +1460,7 @@ class RoomManager:
     """
     output = "The mod list has been updated."
 
-    print(output)
+    sys.stdout.write(output)
 
   def onModAdd(self, room, user):
     """
@@ -1474,7 +1474,7 @@ class RoomManager:
              "Time:\t" + timestamp._getShortTimeStamp() + "\n\t" + \
              "Room:\t" + room.name
 
-    print(output)
+    sys.stdout.write(output)
 
   def onModRemove(self, room, user):
     """
@@ -1488,7 +1488,7 @@ class RoomManager:
              "Time:\t" + timestamp._getShortTimeStamp() + "\n\t" + \
              "Room:\t" + room.name
 
-    print(output)
+    sys.stdout.write(output)
 
   def onMessage(self, room, user, message):
     """
@@ -1508,7 +1508,7 @@ class RoomManager:
              #"Body:\t" + message.getBody() + "\n\t" + \
              #"Time:\t" + timestamp._getShortTimeStamp()
 
-    #print(output)
+    #sys.stdout.write(output)
     pass
 
   def onHistoryMessage(self, room, user, message):
@@ -1539,7 +1539,7 @@ class RoomManager:
              "Room:\t" + room.name
 
     if watchusers == True:
-        print(output)
+        sys.stdout.write(output)
     elif watchusers == False:
         pass
 
@@ -1558,7 +1558,7 @@ class RoomManager:
              "Room:\t" + room.name
 
     if watchusers == True:
-        print(output)
+        sys.stdout.write(output)
     elif watchusers == False:
         pass
 
@@ -1582,7 +1582,7 @@ class RoomManager:
     """
     #output = "Ping sent in the room " + str(room.name) + "."
 
-    #print(output)
+    #sys.stdout.write(output)
     pass
 
   def onUserCountChange(self, room):
@@ -1594,7 +1594,7 @@ class RoomManager:
     """
     #output = "There are now " + str(room.getUserCount()) + " members in the room " + str(room.name) + "."
 
-    #print(output)
+    #sys.stdout.write(output)
     pass
 
   def onBan(self, room, user, target):
@@ -1645,18 +1645,18 @@ class RoomManager:
     output = "Successfully connected to private chat!\t(" + \
              timestamp._getLongTimeStamp() + ")"
 
-    print(output)
+    sys.stdout.write(output)
 
   def onPMDisconnect(self, pm):
     output = "Disconnected from private chat.\t(" + \
              timestamp._getLongTimeStamp() + ")"
 
-    print(output)
+    sys.stdout.write(output)
 
   def onPMPing(self, pm):
     #output = "Ping sent."
 
-    #print(output)
+    #sys.stdout.write(output)
     pass
 
   def onPMMessage(self, pm, user, body):
@@ -1676,42 +1676,42 @@ class RoomManager:
              "User:\t" + user.name + "\n\t" + \
              "Time:\t" + timestamp._getShortTimeStamp()
 
-    print(output)
+    sys.stdout.write(output)
 
   def onPMContactRemove(self, pm, user):
     output = "Existing contact removed from private chat.\n\t" + \
              "User:\t" + user.name + "\n\t" + \
              "Time:\t" + timestamp._getShortTimeStamp()
 
-    print(output)
+    sys.stdout.write(output)
 
   def onPMBlock(self, pm, user):
     output = "User blocked from sending PMs To Me.\n\t" + \
              "User:\t" + user.name + "\n\t" + \
              "Time:\t" + timestamp._getShortTimeStamp()
 
-    print(output)
+    sys.stdout.write(output)
 
   def onPMUnblock(self, pm, user):
     output = "User unblocked from sending PMs To Me.\n\t" + \
              "User:\t" + user.name + "\n\t" + \
              "Time:\t" + timestamp._getShortTimeStamp()
 
-    print(output)
+    sys.stdout.write(output)
     
   def onPMContactOnline(self, pm, user):
     output = "A user is now online.\n\t" + \
              "User:\t" + user.name + "\n\t" + \
              "Time:\t" + timestamp._getShortTimeStamp()
 
-    print(output)
+    sys.stdout.write(output)
 
   def onPMContactOffline(self, pm, user):
     output = "A user has gone offline.\n\t" + \
              "User:\t" + user.name + "\n\t" + \
              "Time:\t" + timestamp._getShortTimeStamp()
 
-    print(output)
+    sys.stdout.write(output)
 
   def onEventCalled(self, room, evt, *args, **kw):
     """
