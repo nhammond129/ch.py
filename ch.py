@@ -2,7 +2,7 @@
 # File: ch.py
 # Title: Chatango Library
 # Author: Lumirayz/Lumz <lumirayz@gmail.com>
-# Version: 1.3.4
+# Version: 1.3.4a
 # Description:
 #  An event-based library for connecting to one or multiple Chatango rooms, has
 #  support for several things including: messaging, message font,
@@ -468,7 +468,7 @@ class Room:
     self._userCount = 0
     self._pingTask = None
     self._botname = None
-    self._currentname = None
+    self._currentname = "anon"
     self._users = dict()
     self._msgs = dict()
     self._wlock = False
@@ -945,7 +945,7 @@ class Room:
           self.message(sect, html = html)
       return
     msg = "<n" + self.user.nameColor + "/>" + msg
-    if not self._currentname.startswith("!anon") or self._currentname == None:
+    if self._currentname != None or not self._currentname.startswith("!anon"):
       msg = "<f x%0.2i%s=\"%s\">" %(self.user.fontSize, self.user.fontColor, self.user.fontFace) + msg
     self.rawMessage(msg)
 
