@@ -55,8 +55,8 @@ BigMessage_Cut = 1
 
 
 #VARS
-
-watchusers = False
+#use in bot file#
+#watchusers = False
 ################################################################
 # Struct class
 ################################################################
@@ -1359,8 +1359,9 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    output = "Successfully connected to " + room.getName() + "!" + \
-               "\t(" + timestamp._getLongTimeStamp() + ")"
+    #output = "Successfully connected to " + room.getName() + "!" + \
+               #"\t(" + timestamp._getLongTimeStamp() + ")"
+               #use in bot file#
 
     pass
   def onReconnect(self, room):
@@ -1370,7 +1371,8 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    output = "Reconnected to " + room.getName() + "."
+    #output = "Reconnected to " + room.getName() + "."
+    #use in bot file#
 
     pass
 
@@ -1391,8 +1393,9 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    output = "Disconnected from " + room.getName() + "." + \
-             "\t(" + timestamp._getLongTimeStamp() + ")"
+    #output = "Disconnected from " + room.getName() + "." + \
+             #"\t(" + timestamp._getLongTimeStamp() + ")"
+             #use in bot file#
 
     pass
 
@@ -1412,7 +1415,8 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    output = "Flagged.  Please wait 15 minutes."
+    #output = "Flagged.  Please wait 15 minutes."
+    #use in bot file#
 
     pass
 
@@ -1423,7 +1427,8 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    output = "Can't post:  still flagged."
+    #output = "Can't post:  still flagged."
+    #use in bot file#
 
     pass
 
@@ -1448,11 +1453,12 @@ class RoomManager:
     @type message: Message
     @param message: message that got deleted
     """
-    output = "Post deleted.\n\t" + \
-             "Author:\t" + user.name + "\n\t" + \
-             "IP:\t\t" + message.ip + "\n\t" + \
-             "Message : "+ message.body + "\n\t" + \
-             "Room : "+room.name
+    #output = "Post deleted.\n\t" + \
+             #"Author:\t" + user.name + "\n\t" + \
+             #"IP:\t\t" + message.ip + "\n\t" + \
+             #"Message : "+ message.body + "\n\t" + \
+             #"Room : "+room.name
+             #use in bot file#
 
     pass
 
@@ -1464,7 +1470,8 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    output = "The mod list has been updated."
+    #output = "The mod list has been updated."
+    #use in bot file#
 
     pass
 
@@ -1475,10 +1482,11 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    output = "Someone was promoted to chat mod.\n\t" + \
-             "User:\t" + user.name + "\n\t" + \
-             "Time:\t" + timestamp._getShortTimeStamp() + "\n\t" + \
-             "Room:\t" + room.name
+    #output = "Someone was promoted to chat mod.\n\t" + \
+             #"User:\t" + user.name + "\n\t" + \
+             #"Time:\t" + timestamp._getShortTimeStamp() + "\n\t" + \
+             #"Room:\t" + room.name
+             #use in bot file#
 
     pass
 
@@ -1489,11 +1497,11 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    output = "Someone was demoted from chat mod.\n\t" + \
-             "User:\t" + user.name + "\n\t" + \
-             "Time:\t" + timestamp._getShortTimeStamp() + "\n\t" + \
-             "Room:\t" + room.name
-
+    #output = "Someone was demoted from chat mod.\n\t" + \
+             #"User:\t" + user.name + "\n\t" + \
+             #"Time:\t" + timestamp._getShortTimeStamp() + "\n\t" + \
+             #"Room:\t" + room.name
+             #use in bot file#
     pass
 
   def onMessage(self, room, user, message):
@@ -1538,13 +1546,14 @@ class RoomManager:
     @type user: User
     @param user: the user that has joined
     """
-    if watchusers == True:
-        output = "A known user joined the room.\n\t" + \
-                 "User:\t" + user.name + "\n\t" + \
-                 "Time:\t" + timestamp._getShortTimeStamp() + "\n\t" + \
-                 "Room:\t" + room.name
-    elif watchusers == False:
-        pass
+    #if watchusers == True:
+        #output = "A known user joined the room.\n\t" + \
+                 #"User:\t" + user.name + "\n\t" + \
+                 #"Time:\t" + timestamp._getShortTimeStamp() + "\n\t" + \
+                 #"Room:\t" + room.name
+    #elif watchusers == False:
+        #pass
+        #use in bot file#
     pass
 
   def onLeave(self, room, user):
@@ -1556,14 +1565,15 @@ class RoomManager:
     @type user: User
     @param user: the user that has left
     """
-    if watchusers == True:
-        output = "A known user left the room.\n\t" + \
-                 "User:\t" + user.name + "\n\t" + \
-                 "Time:\t" + timestamp._getShortTimeStamp() + "\n\t" + \
-                 "Room:\t" + room.name
+    #if watchusers == True:
+        #output = "A known user left the room.\n\t" + \
+                 #"User:\t" + user.name + "\n\t" + \
+                 #"Time:\t" + timestamp._getShortTimeStamp() + "\n\t" + \
+                 #"Room:\t" + room.name
 
-    elif watchusers == False:
-        pass
+    #elif watchusers == False:
+        #pass
+        #use in bot file#
     pass
   def onRaw(self, room, raw):
     """
@@ -1584,7 +1594,7 @@ class RoomManager:
     @param room: room where the event occured
     """
     #output = "Ping sent in the room " + str(room.name) + "."
-
+    #use in bot file#
     pass
 
   def onUserCountChange(self, room):
@@ -1595,7 +1605,7 @@ class RoomManager:
     @param room: room where the event occured
     """
     #output = "There are now " + str(room.getUserCount()) + " members in the room " + str(room.name) + "."
-
+    #use in bot file#
     pass
 
   def onBan(self, room, user, target):
@@ -1645,19 +1655,22 @@ class RoomManager:
     pass
 
   def onPMConnect(self, pm):
-    output = "Successfully connected to private chat!\t(" + \
-             timestamp._getLongTimeStamp() + ")"
+    #output = "Successfully connected to private chat!\t(" + \
+             #timestamp._getLongTimeStamp() + ")"
+             #use in bot file#
 
     pass
 
   def onPMDisconnect(self, pm):
-    output = "Disconnected from private chat.\t(" + \
-             timestamp._getLongTimeStamp() + ")"
+    #output = "Disconnected from private chat.\t(" + \
+             #timestamp._getLongTimeStamp() + ")"
+             #use in bot file#
 
     pass
 
   def onPMPing(self, pm):
     #output = "Ping sent."
+    #use in bot file#
 
     pass
 
@@ -1674,44 +1687,48 @@ class RoomManager:
     pass
 
   def onPMContactAdd(self, pm, user):
-    output = "New contact added in private chat.\n\t" + \
-             "User:\t" + user.name + "\n\t" + \
-             "Time:\t" + timestamp._getShortTimeStamp()
+    #output = "New contact added in private chat.\n\t" + \
+             #"User:\t" + user.name + "\n\t" + \
+             #"Time:\t" + timestamp._getShortTimeStamp()
+             #use in bot file#
 
     pass
 
   def onPMContactRemove(self, pm, user):
-    output = "Existing contact removed from private chat.\n\t" + \
-             "User:\t" + user.name + "\n\t" + \
-             "Time:\t" + timestamp._getShortTimeStamp()
-
+    #output = "Existing contact removed from private chat.\n\t" + \
+             #"User:\t" + user.name + "\n\t" + \
+             #"Time:\t" + timestamp._getShortTimeStamp()
+             #use in bot file#
     pass
 
   def onPMBlock(self, pm, user):
-    output = "User blocked from sending PMs To Me.\n\t" + \
-             "User:\t" + user.name + "\n\t" + \
-             "Time:\t" + timestamp._getShortTimeStamp()
+    #output = "User blocked from sending PMs To Me.\n\t" + \
+             #"User:\t" + user.name + "\n\t" + \
+             #"Time:\t" + timestamp._getShortTimeStamp()
+             #use in bot file#
 
     pass
 
   def onPMUnblock(self, pm, user):
-    output = "User unblocked from sending PMs To Me.\n\t" + \
-             "User:\t" + user.name + "\n\t" + \
-             "Time:\t" + timestamp._getShortTimeStamp()
+    #output = "User unblocked from sending PMs To Me.\n\t" + \
+             #"User:\t" + user.name + "\n\t" + \
+             #"Time:\t" + timestamp._getShortTimeStamp()
+             #use in bot file#
 
     pass
     
   def onPMContactOnline(self, pm, user):
-    output = "A user is now online.\n\t" + \
-             "User:\t" + user.name + "\n\t" + \
-             "Time:\t" + timestamp._getShortTimeStamp()
-
+    #output = "A user is now online.\n\t" + \
+             #"User:\t" + user.name + "\n\t" + \
+             #"Time:\t" + timestamp._getShortTimeStamp()
+             #use in bot file#
     pass
 
   def onPMContactOffline(self, pm, user):
-    output = "A user has gone offline.\n\t" + \
-             "User:\t" + user.name + "\n\t" + \
-             "Time:\t" + timestamp._getShortTimeStamp()
+    #output = "A user has gone offline.\n\t" + \
+             #"User:\t" + user.name + "\n\t" + \
+             #"Time:\t" + timestamp._getShortTimeStamp()
+             #use in bot file#
 
     pass
 
@@ -2046,7 +2063,7 @@ class _User:
   # Repr
   ####
   def __repr__(self):
-    return "<User: %s>" %(self.name)
+    return self.name
 
 ################################################################
 # Message class
