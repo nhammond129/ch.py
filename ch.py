@@ -2,7 +2,7 @@
 # File: ch.py
 # Title: Chatango Library
 # Author: Lumirayz/Lumz <lumirayz@gmail.com>
-# Version: 1.3.4a
+# Version: 1.3.4
 # Description:
 #  An event-based library for connecting to one or multiple Chatango rooms, has
 #  support for several things including: messaging, message font,
@@ -23,9 +23,11 @@ import socket
 import threading
 import time
 import random
+import traceback
 import re
 import sys
 import select
+import timestamp
 
 
 ################################################################
@@ -50,6 +52,11 @@ Userlist_All = 1
 BigMessage_Multiple = 0
 BigMessage_Cut = 1
 
+
+
+#VARS
+
+watchusers = False
 ################################################################
 # Struct class
 ################################################################
@@ -247,14 +254,17 @@ class PM:
   # Connections
   ####
   def _connect(self):
-    self._wbuf = b""
-    self._sock = socket.socket()
-    self._sock.connect((self._mgr._PMHost, self._mgr._PMPort))
-    self._sock.setblocking(False)
-    self._firstCommand = True
-    if not self._auth(): return
-    self._pingTask = self.mgr.setInterval(self._mgr._pingDelay, self.ping)
-    self._connected = True
+    try:
+      self._wbuf = b""
+      self._sock = socket.socket()
+      self._sock.connect((self._mgr._PMHost, self._mgr._PMPort))
+      self._sock.setblocking(False)
+      self._firstCommand = True
+      if not self._auth(): return
+      self._pingTask = self.mgr.setInterval(self._mgr._pingDelay, self.ping)
+      self._connected = True
+    except Exception as e:
+      return e
 
   def _auth(self):
     self._auid = _getAuth(self._mgr.name, self._mgr.password)
@@ -468,7 +478,7 @@ class Room:
     self._userCount = 0
     self._pingTask = None
     self._botname = None
-    self._currentname = "anon"
+    self._currentname = None
     self._users = dict()
     self._msgs = dict()
     self._wlock = False
@@ -500,15 +510,18 @@ class Room:
   # Connect/disconnect
   ####
   def _connect(self):
-    """Connect to the server."""
-    self._sock = socket.socket()
-    self._sock.connect((self._server, self._port))
-    self._sock.setblocking(False)
-    self._firstCommand = True
-    self._wbuf = b""
-    self._auth()
-    self._pingTask = self.mgr.setInterval(self.mgr._pingDelay, self.ping)
-    if not self._reconnecting: self.connected = True
+    try:
+      """Connect to the server."""
+      self._sock = socket.socket()
+      self._sock.connect((self._server, self._port))
+      self._sock.setblocking(False)
+      self._firstCommand = True
+      self._wbuf = b""
+      self._auth()
+      self._pingTask = self.mgr.setInterval(self.mgr._pingDelay, self.ping)
+      if not self._reconnecting: self.connected = True
+    except Exception as e:
+      return e
 
   def reconnect(self):
     """Reconnect."""
@@ -561,7 +574,13 @@ class Room:
       return "#" + self.mgr.name
     elif self.mgr.name == None:
       return self._botname
-  def getCurrentname(self): return self._currentname
+  def getCurrentname(self):
+    if self.mgr.name and self.mgr.password:
+      return self.mgr.name
+    elif self.mgr.name and self.mgr.password == None:
+      return "#" + self.mgr.name
+    elif self.mgr.name == None:
+      return self._currentname
   def getManager(self): return self._mgr
   def getUserlist(self, mode = None, unique = None, memory = None):
     ul = None
@@ -738,6 +757,7 @@ class Room:
       user = User(name),
       body = msg,
       raw = rawmsg,
+      uid = puid,
       ip = ip,
       nameColor = nameColor,
       fontColor = fontColor,
@@ -945,7 +965,7 @@ class Room:
           self.message(sect, html = html)
       return
     msg = "<n" + self.user.nameColor + "/>" + msg
-    if self._currentname != None or not self._currentname.startswith("!anon"):
+    if not self.getCurrentname().startswith("!anon"):
       msg = "<f x%0.2i%s=\"%s\">" %(self.user.fontSize, self.user.fontColor, self.user.fontFace) + msg
     self.rawMessage(msg)
 
@@ -1339,8 +1359,10 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
-    pass
+    output = "Successfully connected to " + room.getName() + "!" + \
+               "\t(" + timestamp._getLongTimeStamp() + ")"
 
+    pass
   def onReconnect(self, room):
     """
     Called when reconnected to the room.
@@ -1348,6 +1370,8 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
+    output = "Reconnected to " + room.getName() + "."
+
     pass
 
   def onConnectFail(self, room):
@@ -1357,8 +1381,9 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
+    #room.reconnect()
+    #use at ur own risk if u want to loop if the room dont exist#
     pass
-
   def onDisconnect(self, room):
     """
     Called when the client gets disconnected.
@@ -1366,6 +1391,9 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
+    output = "Disconnected from " + room.getName() + "." + \
+             "\t(" + timestamp._getLongTimeStamp() + ")"
+
     pass
 
   def onLoginFail(self, room):
@@ -1384,6 +1412,8 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
+    output = "Flagged.  Please wait 15 minutes."
+
     pass
 
   def onFloodBanRepeat(self, room):
@@ -1393,6 +1423,8 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
+    output = "Can't post:  still flagged."
+
     pass
 
   def onFloodWarning(self, room):
@@ -1402,6 +1434,7 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
+    #self.setTimeout(int(5), room.message, "This is a flood warning for " + room.getName() + ".")
     pass
 
   def onMessageDelete(self, room, user, message):
@@ -1415,7 +1448,14 @@ class RoomManager:
     @type message: Message
     @param message: message that got deleted
     """
+    output = "Post deleted.\n\t" + \
+             "Author:\t" + user.name + "\n\t" + \
+             "IP:\t\t" + message.ip + "\n\t" + \
+             "Message : "+ message.body + "\n\t" + \
+             "Room : "+room.name
+
     pass
+
 
   def onModChange(self, room):
     """
@@ -1424,6 +1464,8 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
+    output = "The mod list has been updated."
+
     pass
 
   def onModAdd(self, room, user):
@@ -1433,6 +1475,11 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
+    output = "Someone was promoted to chat mod.\n\t" + \
+             "User:\t" + user.name + "\n\t" + \
+             "Time:\t" + timestamp._getShortTimeStamp() + "\n\t" + \
+             "Room:\t" + room.name
+
     pass
 
   def onModRemove(self, room, user):
@@ -1442,6 +1489,11 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
+    output = "Someone was demoted from chat mod.\n\t" + \
+             "User:\t" + user.name + "\n\t" + \
+             "Time:\t" + timestamp._getShortTimeStamp() + "\n\t" + \
+             "Room:\t" + room.name
+
     pass
 
   def onMessage(self, room, user, message):
@@ -1455,6 +1507,13 @@ class RoomManager:
     @type message: Message
     @param message: received message
     """
+    #if u really wanna stalk everyone go ahead but this will slow ur shit down alot#
+    #output = "Message posted to room.\n\t" + \
+             #"Author:\t" + user.name + "\n\t" + \
+             #"IP:\t\t" + message.ip + "\n\t" + \
+             #"Body:\t" + message.getBody() + "\n\t" + \
+             #"Time:\t" + timestamp._getShortTimeStamp()
+
     pass
 
   def onHistoryMessage(self, room, user, message):
@@ -1479,6 +1538,13 @@ class RoomManager:
     @type user: User
     @param user: the user that has joined
     """
+    if watchusers == True:
+        output = "A known user joined the room.\n\t" + \
+                 "User:\t" + user.name + "\n\t" + \
+                 "Time:\t" + timestamp._getShortTimeStamp() + "\n\t" + \
+                 "Room:\t" + room.name
+    elif watchusers == False:
+        pass
     pass
 
   def onLeave(self, room, user):
@@ -1490,8 +1556,15 @@ class RoomManager:
     @type user: User
     @param user: the user that has left
     """
-    pass
+    if watchusers == True:
+        output = "A known user left the room.\n\t" + \
+                 "User:\t" + user.name + "\n\t" + \
+                 "Time:\t" + timestamp._getShortTimeStamp() + "\n\t" + \
+                 "Room:\t" + room.name
 
+    elif watchusers == False:
+        pass
+    pass
   def onRaw(self, room, raw):
     """
     Called before any command parsing occurs.
@@ -1510,6 +1583,8 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
+    #output = "Ping sent in the room " + str(room.name) + "."
+
     pass
 
   def onUserCountChange(self, room):
@@ -1519,6 +1594,8 @@ class RoomManager:
     @type room: Room
     @param room: room where the event occured
     """
+    #output = "There are now " + str(room.getUserCount()) + " members in the room " + str(room.name) + "."
+
     pass
 
   def onBan(self, room, user, target):
@@ -1532,8 +1609,14 @@ class RoomManager:
     @type target: User
     @param target: user that got banned
     """
+    #try:
+      #room.message("A user has been banned.<br> Banned: " + target.name + "<br> Banner: " + user.name + "<br> Time: " + timestamp._getShortTimeStamp() + "<br> Reason: " + room.getLastMessage(User(target.name)).body, True)
+      #self.pm.message(User(target.name), "%s you have banned in %s by %s for %s" % (target.name, room.name, user.name, room.getLastMessage(User(target.name)).body))
+
+    #except Exception as e:
+      #room.message("Errors " +str(e), True)
+    # define this in ur bot file#    
     pass
- 
   def onUnban(self, room, user, target):
     """
     Called when a user gets unbanned.
@@ -1545,8 +1628,13 @@ class RoomManager:
     @type target: User
     @param target: user that got unbanned
     """
+    #try:
+      #room.message("A user has been unbanned. <br> Unbanned: " + target.name + "<br> Unbanner: " + user.name + "<br> Time: " + timestamp._getShortTimeStamp(), True)
+      
+    #except Exception as e:
+      #room.message("Errors " +str(e), True)
+    #define this in ur bot file#
     pass
-
   def onBanlistUpdate(self, room):
     """
     Called when a banlist gets updated.
@@ -1557,12 +1645,20 @@ class RoomManager:
     pass
 
   def onPMConnect(self, pm):
+    output = "Successfully connected to private chat!\t(" + \
+             timestamp._getLongTimeStamp() + ")"
+
     pass
 
   def onPMDisconnect(self, pm):
+    output = "Disconnected from private chat.\t(" + \
+             timestamp._getLongTimeStamp() + ")"
+
     pass
 
   def onPMPing(self, pm):
+    #output = "Ping sent."
+
     pass
 
   def onPMMessage(self, pm, user, body):
@@ -1578,21 +1674,45 @@ class RoomManager:
     pass
 
   def onPMContactAdd(self, pm, user):
+    output = "New contact added in private chat.\n\t" + \
+             "User:\t" + user.name + "\n\t" + \
+             "Time:\t" + timestamp._getShortTimeStamp()
+
     pass
 
   def onPMContactRemove(self, pm, user):
+    output = "Existing contact removed from private chat.\n\t" + \
+             "User:\t" + user.name + "\n\t" + \
+             "Time:\t" + timestamp._getShortTimeStamp()
+
     pass
 
   def onPMBlock(self, pm, user):
+    output = "User blocked from sending PMs To Me.\n\t" + \
+             "User:\t" + user.name + "\n\t" + \
+             "Time:\t" + timestamp._getShortTimeStamp()
+
     pass
 
   def onPMUnblock(self, pm, user):
-    pass
+    output = "User unblocked from sending PMs To Me.\n\t" + \
+             "User:\t" + user.name + "\n\t" + \
+             "Time:\t" + timestamp._getShortTimeStamp()
 
+    pass
+    
   def onPMContactOnline(self, pm, user):
+    output = "A user is now online.\n\t" + \
+             "User:\t" + user.name + "\n\t" + \
+             "Time:\t" + timestamp._getShortTimeStamp()
+
     pass
 
   def onPMContactOffline(self, pm, user):
+    output = "A user has gone offline.\n\t" + \
+             "User:\t" + user.name + "\n\t" + \
+             "Time:\t" + timestamp._getShortTimeStamp()
+
     pass
 
   def onEventCalled(self, room, evt, *args, **kw):
@@ -1981,6 +2101,7 @@ class Message:
   def getTime(self): return self._time
   def getUser(self): return self._user
   def getBody(self): return self._body
+  def getUid(self): return self._uid
   def getIP(self): return self._ip
   def getFontColor(self): return self._fontColor
   def getFontFace(self): return self._fontFace
@@ -1994,6 +2115,7 @@ class Message:
   time = property(getTime)
   user = property(getUser)
   body = property(getBody)
+  uid = property(getUid)
   room = property(getRoom)
   ip = property(getIP)
   fontColor = property(getFontColor)
