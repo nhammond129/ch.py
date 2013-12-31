@@ -468,7 +468,7 @@ class Room:
     self._userCount = 0
     self._pingTask = None
     self._botname = None
-    self._currentname = "anon"
+    self._currentname = None
     self._users = dict()
     self._msgs = dict()
     self._wlock = False
