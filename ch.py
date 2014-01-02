@@ -2,7 +2,7 @@
 # File: ch.py
 # Title: Chatango Library
 # Author: Lumirayz/Lumz <lumirayz@gmail.com>
-# Version: 1.3.4
+# Version: 1.3.4a
 # Description:
 #  An event-based library for connecting to one or multiple Chatango rooms, has
 #  support for several things including: messaging, message font,
@@ -248,14 +248,14 @@ class PM:
   # Connections
   ####
   def _connect(self):
-      self._wbuf = b""
-      self._sock = socket.socket()
-      self._sock.connect((self._mgr._PMHost, self._mgr._PMPort))
-      self._sock.setblocking(False)
-      self._firstCommand = True
-      if not self._auth(): return
-      self._pingTask = self.mgr.setInterval(self._mgr._pingDelay, self.ping)
-      self._connected = True
+    self._wbuf = b""
+    self._sock = socket.socket()
+    self._sock.connect((self._mgr._PMHost, self._mgr._PMPort))
+    self._sock.setblocking(False)
+    self._firstCommand = True
+    if not self._auth(): return
+    self._pingTask = self.mgr.setInterval(self._mgr._pingDelay, self.ping)
+    self._connected = True
 
   def _auth(self):
     self._auid = _getAuth(self._mgr.name, self._mgr.password)
@@ -501,15 +501,15 @@ class Room:
   # Connect/disconnect
   ####
   def _connect(self):
-      """Connect to the server."""
-      self._sock = socket.socket()
-      self._sock.connect((self._server, self._port))
-      self._sock.setblocking(False)
-      self._firstCommand = True
-      self._wbuf = b""
-      self._auth()
-      self._pingTask = self.mgr.setInterval(self.mgr._pingDelay, self.ping)
-      if not self._reconnecting: self.connected = True
+    """Connect to the server."""
+    self._sock = socket.socket()
+    self._sock.connect((self._server, self._port))
+    self._sock.setblocking(False)
+    self._firstCommand = True
+    self._wbuf = b""
+    self._auth()
+    self._pingTask = self.mgr.setInterval(self.mgr._pingDelay, self.ping)
+    if not self._reconnecting: self.connected = True
 
   def reconnect(self):
     """Reconnect."""
