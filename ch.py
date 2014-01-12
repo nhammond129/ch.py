@@ -603,7 +603,7 @@ class Room:
     return list(map(lambda x: x.name, ul))
   def getUser(self): return self.mgr.user
   def getOwner(self): return self._owner
-  def getOwnerName(self): return self._owner.name
+  def getOwnerName(self): return self.owner.name
   def getMods(self):
     newset = set()
     for mod in self._mods:
