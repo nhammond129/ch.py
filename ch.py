@@ -891,6 +891,7 @@ class Room:
   def rcmd_unblocked(self, args):
     if args[2] == "": return
     target = User(args[2])
+    user=User(args[3)]
     self._callEvent("onUnban", user, target)
     self.requestBanlist()
 
