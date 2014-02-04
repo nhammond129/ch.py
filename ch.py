@@ -366,6 +366,9 @@ class PM:
 
   def rcmd_kickingoff(self, args):
     self.disconnect()
+    
+  def rcmd_toofast(self, args):
+    self.disconnect()
 
   ####
   # Commands
