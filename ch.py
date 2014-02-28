@@ -2,7 +2,7 @@
 # File: ch.py
 # Title: Chatango Library
 # Author: Lumirayz/Lumz <lumirayz@gmail.com>
-# Version: 1.3.4a
+# Version: 1.3.4b
 # Description:
 #  An event-based library for connecting to one or multiple Chatango rooms, has
 #  support for several things including: messaging, message font,
@@ -49,6 +49,7 @@ Userlist_All = 1
 
 BigMessage_Multiple = 0
 BigMessage_Cut = 1
+
 
 ################################################################
 # Struct class
@@ -227,6 +228,7 @@ class PM:
   ####
   def __init__(self, mgr):
     self._connected = False
+    self._reconnecting = False
     self._mgr = mgr
     self._auid = None
     self._blocklist = set()
@@ -255,6 +257,20 @@ class PM:
     if not self._auth(): return
     self._pingTask = self.mgr.setInterval(self._mgr._pingDelay, self.ping)
     self._connected = True
+
+  def reconnect(self):
+    """Reconnect."""
+    self._reconnect()
+  
+  def _reconnect(self):
+    """Reconnect."""
+    self._reconnecting = True
+    if self._connected:
+      self._disconnect()
+    self._connect()
+    self._callEvent("onPMReconnect")
+    self._reconnecting = False
+
 
   def _auth(self):
     self._auid = _getAuth(self._mgr.name, self._mgr.password)
@@ -564,7 +580,13 @@ class Room:
       return "#" + self.mgr.name
     elif self.mgr.name == None:
       return self._botname
-  def getCurrentname(self): return self._currentname
+  def getCurrentname(self):
+    if self.mgr.name and self.mgr.password:
+      return self.mgr.name
+    elif self.mgr.name and self.mgr.password == None:
+      return "#" + self.mgr.name
+    elif self.mgr.name == None:
+      return self._currentname
   def getManager(self): return self._mgr
   def getUserlist(self, mode = None, unique = None, memory = None):
     ul = None
@@ -584,7 +606,7 @@ class Room:
     return list(map(lambda x: x.name, ul))
   def getUser(self): return self.mgr.user
   def getOwner(self): return self._owner
-  def getOwnerName(self): return self._owner.name
+  def getOwnerName(self): return self.owner.name
   def getMods(self):
     newset = set()
     for mod in self._mods:
@@ -741,6 +763,7 @@ class Room:
       user = User(name),
       body = msg,
       raw = rawmsg,
+      uid = puid,
       ip = ip,
       nameColor = nameColor,
       fontColor = fontColor,
@@ -949,7 +972,7 @@ class Room:
           self.message(sect, html = html)
       return
     msg = "<n" + self.user.nameColor + "/>" + msg
-    if self._currentname != None or not self._currentname.startswith("!anon"):
+    if not self.getCurrentname().startswith("!") or not self.getCurrentname().startswith("#"):
       msg = "<f x%0.2i%s=\"%s\">" %(self.user.fontSize, self.user.fontColor, self.user.fontFace) + msg
     self.rawMessage(msg)
 
@@ -1344,7 +1367,6 @@ class RoomManager:
     @param room: room where the event occured
     """
     pass
-
   def onReconnect(self, room):
     """
     Called when reconnected to the room.
@@ -1362,7 +1384,7 @@ class RoomManager:
     @param room: room where the event occured
     """
     pass
-
+  
   def onDisconnect(self, room):
     """
     Called when the client gets disconnected.
@@ -1495,7 +1517,7 @@ class RoomManager:
     @param user: the user that has left
     """
     pass
-
+  
   def onRaw(self, room, raw):
     """
     Called before any command parsing occurs.
@@ -1537,7 +1559,7 @@ class RoomManager:
     @param target: user that got banned
     """
     pass
- 
+  
   def onUnban(self, room, user, target):
     """
     Called when a user gets unbanned.
@@ -1550,7 +1572,7 @@ class RoomManager:
     @param target: user that got unbanned
     """
     pass
-
+  
   def onBanlistUpdate(self, room):
     """
     Called when a banlist gets updated.
@@ -1561,6 +1583,9 @@ class RoomManager:
     pass
 
   def onPMConnect(self, pm):
+    pass
+  
+  def onPMReconnect(self, pm):
     pass
 
   def onPMDisconnect(self, pm):
@@ -1592,7 +1617,7 @@ class RoomManager:
 
   def onPMUnblock(self, pm, user):
     pass
-
+    
   def onPMContactOnline(self, pm, user):
     pass
 
@@ -1930,7 +1955,7 @@ class _User:
   # Repr
   ####
   def __repr__(self):
-    return "<User: %s>" %(self.name)
+    return self.name
 
 ################################################################
 # Message class
@@ -1985,6 +2010,7 @@ class Message:
   def getTime(self): return self._time
   def getUser(self): return self._user
   def getBody(self): return self._body
+  def getUid(self): return self._uid
   def getIP(self): return self._ip
   def getFontColor(self): return self._fontColor
   def getFontFace(self): return self._fontFace
@@ -1998,6 +2024,7 @@ class Message:
   time = property(getTime)
   user = property(getUser)
   body = property(getBody)
+  uid = property(getUid)
   room = property(getRoom)
   ip = property(getIP)
   fontColor = property(getFontColor)
