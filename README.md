@@ -12,6 +12,6 @@ The previous holder (pun unintended) unexpectedly dropped from his/her position 
 it and I just happened to be the one of the few who tried to pick up the pieces. ~~~~ nullspeaker
 
 ----
-  neither am i the original author, but merely just the 2nd current maintainer,
-i just patch up whatever error make by nullspeaker and others people's patch for the ch.py,
-upgrading it when needed or wanted by other people and fixing it when it's broken. ~~~~ asl97
+  Nor am I the original author, just the 2nd current maintainer, I just patch up
+any errors made by Nullspeaker and others peoples' patch for ch.py, updating it
+when needed and fixing it when it's broken. ~~~~ asl97
