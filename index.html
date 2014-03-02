@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>ch.py by Nullspeaker</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>ch.py</h1>
+        <p>Python library for connecting to Chatango chat servers.</p>
+
+        <p class="view"><a href="https://github.com/Nullspeaker/ch.py">View the Project on GitHub <small>Nullspeaker/ch.py</small></a></p>
+
+
+        <ul>
+          <li><a href="https://github.com/Nullspeaker/ch.py/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/Nullspeaker/ch.py/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/Nullspeaker/ch.py">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h2>
+<a name="chpy" class="anchor" href="#chpy"><span class="octicon octicon-link"></span></a>ch.py</h2>
+
+<h1></h1>
+
+<p>Distributed under the terms of the GNU GPL. </p>
+
+<p>An event-based library for connecting to one or more Chatango chat rooms. Has support 
+for several things including: messaging, message font, name colour, deleting, banning, recent 
+history, two userlist modes, flagging, avoiding flood bans, and detecting flags.</p>
+
+<hr><h6>
+<a name="easy-creation-of-bots" class="anchor" href="#easy-creation-of-bots"><span class="octicon octicon-link"></span></a>Easy Creation of Bots</h6>
+
+<p>With ch.py, creation of Chatango bots is made easy. A functional bot can even be made in less than ten lines of Python code!</p>
+
+<pre><code>#!/usr/bin/python
+import ch
+class TestBot(ch.RoomManager):
+  def onMessage(self, room, user, message):
+    self.safePrint(user.name + ': ' + message.body)
+    if message.body.startswith("!scream"):
+      room.message("AAAAAAAAAAAAAA")
+if __name__ == "__main__":
+  TestBot.easy_start()
+</code></pre>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/Nullspeaker">Nullspeaker</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+    
+  </body>
+</html>
