@@ -45,7 +45,7 @@ class updater:
     print("ID: "+self.ID)
     print("Retrieving server weights...")
     self.weights = self.findweights()
-    print(self.weights)
+    #print(self.weights)
     self.updatech()
     print("The server weights are now updated for ch.py, enjoy!")
 
