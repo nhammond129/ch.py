@@ -554,20 +554,6 @@ class Room:
     if self._mgr: self._connect()
 
   ####
-  # User and Message management
-  ####
-  def _getMessage(self, mid):
-    return self._msgs.get(mid)
-
-  def _createMessage(self, msgid, **kw):
-    if msgid not in self._msgs:
-      msg = Message(msgid = msgid, **kw)
-      self._msgs[msgid] = msg
-    else:
-      msg = self._msgs[msgid]
-    return msg
-
-  ####
   # Connect/disconnect
   ####
   def _connect(self):
@@ -913,7 +899,7 @@ class Room:
     self._callEvent("onFloodBanRepeat")
 
   def _rcmd_delete(self, args):
-    msg = self._getMessage(args[0])
+    msg = self._msgs[args[0]]
     if msg:
       if msg in self._history:
         self._history.remove(msg)
