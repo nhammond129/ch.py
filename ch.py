@@ -835,11 +835,9 @@ class Room:
     mtime = float(args[0])
     puid = args[3]
     ip = args[6]
-    if ip == "": ip = None
     name = args[1]
-    rawmsg = ":".join(args[8:])
+    rawmsg = ":".join(args[9:])
     msg, n, f = _clean_message(rawmsg)
-    msgid = args[5]
     if name == "":
       nameColor = None
       name = "#" + args[2]
@@ -848,27 +846,24 @@ class Room:
     else:
       if n: nameColor = _parseNameColor(n)
       else: nameColor = None
+    i = args[5]
+    unid = args[4]
+    #Create an anonymous message and queue it because msgid is unknown.
     if f: fontColor, fontFace, fontSize = _parseFont(f)
     else: fontColor, fontFace, fontSize = None, None, None
-    msg = self._createMessage(
-      msgid = msgid,
+    msg = Message(
       time = mtime,
       user = User(name),
       body = msg,
       raw = rawmsg,
-      ip = args[6],
-      unid = args[4],
+      ip = ip,
       nameColor = nameColor,
       fontColor = fontColor,
       fontFace = fontFace,
       fontSize = fontSize,
+      unid = unid,
       room = self
     )
-    if msg.user != self.user:
-      msg.user._fontColor = msg.fontColor
-      msg.user._fontFace = msg.fontFace
-      msg.user._fontSize = msg.fontSize
-      msg.user._nameColor = msg.nameColor
     self._i_log.append(msg)
 
   def _rcmd_g_participants(self, args):
