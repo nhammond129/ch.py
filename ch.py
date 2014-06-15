@@ -460,7 +460,7 @@ class PM:
     self._sendCommand("track", user.name)
 
   def checkOnline(self, user):
-    """return True if online, False if online, None if unknown"""
+    """return True if online, False if offline, None if unknown"""
     if user in self._status:
       return self._status[user][1]
     else:
