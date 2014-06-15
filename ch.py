@@ -238,6 +238,7 @@ class PM:
     self._auid = None
     self._blocklist = set()
     self._contacts = set()
+    self._status = dict()
     self._wlock = False
     self._firstCommand = True
     self._wbuf = b""
@@ -340,6 +341,13 @@ class PM:
       name, last_on, is_on, idle = args[i * 4: i * 4 + 4]
       user = User(name)
       self._contacts.add(user)
+      if is_on == "on":
+          if idle == '0':
+              self._status[user] = [int(last_on), True, 0]
+          else:
+              self._status[user] = [int(last_on), True, time.time() - int(idle) * 60]
+      else:
+          self._status[user] = [int(last_on), False, 0]
     self._callEvent("onPMContactlistReceive")
 
   def _rcmd_block_list(self, args):
@@ -347,6 +355,30 @@ class PM:
     for name in args:
       if name == "": continue
       self._blocklist.add(User(name))
+
+  def _rcmd_idleupdate(self, args):
+    user = User(args[0])
+    last_on, is_on, idle = self._status[user]
+    if args[1] == '1':
+      self._status[user] = [last_on, is_on, 0]
+    else:
+      self._status[user] = [last_on, is_on, time.time()]
+
+  def _rcmd_track(self, args):
+    user = User(args[0])
+    if user in self._status:
+      last_on = self._status[user][0]
+    else:
+      last_on = 0
+    if args[1] == '0':
+      idle = 0
+    else:
+      idle = time.time() - int(args[1]) * 60
+    if args[2] == "online":
+      is_on = True
+    else:
+      is_on = False
+    self._status[user] = [last_on, is_on, idle]
 
   def _rcmd_DENIED(self, args):
     self._disconnect()
@@ -363,16 +395,29 @@ class PM:
     self._callEvent("onPMOfflineMessage", user, body)
 
   def _rcmd_wlonline(self, args):
-    self._callEvent("onPMContactOnline", User(args[0]))
+    user = User(args[0])
+    last_on = int(args[1])
+    self._status[user] = [last_on,True,last_on]
+    self._callEvent("onPMContactOnline", user)
 
   def _rcmd_wloffline(self, args):
-    self._callEvent("onPMContactOffline", User(args[0]))
+    user = User(args[0])
+    last_on = int(args[1])
+    self._status[user] = [last_on,False,0]
+    self._callEvent("onPMContactOffline", user)
 
   def _rcmd_kickingoff(self, args):
     self.disconnect()
 
   def _rcmd_toofast(self, args):
     self.disconnect()
+
+  def _rcmd_unblocked(self, user):
+    """call when successfully unblocked"""
+    if user in self._blocklist:
+      self._blocklist.remove(user)
+      self._callEvent("onPMUnblock", user)
+
 
   ####
   # Commands
@@ -413,11 +458,23 @@ class PM:
     if user in self._blocklist:
       self._sendCommand("unblock", user.name)
 
-  def unblocked(self, user):
-    """call when successfully unblocked"""
-    if user in self._blocklist:
-      self._blocklist.remove(user)
-      self._callEvent("onPMUnblock", user)
+  def track(self, user):
+    """get and store status of person for future use"""
+    self._sendCommand("track", user.name)
+
+  def checkOnline(self, user):
+    """return True if online, False if online, None if unknown"""
+    if user in self._status:
+      return self._status[user][1]
+    else:
+      return None
+
+  def getIdle(self, user):
+    """return last active time, time.time() if isn't idle, 0 if offline, None if unknown"""
+    if not user in self._status: return None
+    if not self._status[user][1]: return 0
+    if not self._status[user][2]: return time.time()
+    else: return self._status[user][2]
 
   ####
   # Util
