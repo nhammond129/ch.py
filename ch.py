@@ -4,7 +4,7 @@
 # Original Author: Lumirayz/Lumz <lumirayz@gmail.com>
 # Current Maintainers and Contributors:
 #  Nullspeaker <import codecs;codecs.encode('aunzzbaq129@tznvy.pbz','rot_13')>
-#  asl97
+#  asl97 <asl97@outlook.com>
 #  pystub
 #  dani87
 #  domzy

@@ -6,7 +6,7 @@ Distributed under the terms of the GNU GPL.
 for several things including: messaging, message font, name colour, deleting, banning, recent 
 history, two userlist modes, flagging, avoiding flood bans, and detecting flags.
 
-Recommended release for single core: [1.3.5](https://github.com/Nullspeaker/ch.py/tree/1.3.5)
+Recommended release for single core: [1.3.5](https://github.com/Nullspeaker/ch.py/releases/tag/v1.3.5)
 
 WARNING: 1.3.5a and newer have some backward incompatible changes with 1.3.5 and older.
 
