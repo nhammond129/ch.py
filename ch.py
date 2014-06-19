@@ -1,13 +1,29 @@
 ################################################################
 # File: ch.py
 # Title: Chatango Library
-# Author: Lumirayz/Lumz <lumirayz@gmail.com>
+# Original Author: Lumirayz/Lumz <lumirayz@gmail.com>
+# Current Maintainers and Contributors:
+#  Nullspeaker <import codecs;codecs.encode('aunzzbaq129@tznvy.pbz','rot_13')>
+#  asl97
+#  pystub
+#  dani87
+#  domzy
+#  kamijoutouma
+#  piks
 # Version: 1.3.5a
 # Description:
 #  An event-based library for connecting to one or multiple Chatango rooms, has
 #  support for several things including: messaging, message font,
 #  name color, deleting, banning, recent history, 2 userlist modes,
 #  flagging, avoiding flood bans, detecting flags.
+# Contact Info:
+#  Any question, comment, or suggestion should be directed to the current
+#  maintainers and contributors, located at:
+#   https://github.com/Nullspeaker/ch.py
+#  Where a more satisfactory response to all bug reports (which can be made on the
+#  issues page) and other statements can be garnered. For things not specific or
+#  in direct reference to this library, 'ch.py', a direct response can be filed
+#  to the individual persons listed above as 'Current Maintainers and Contributors.'
 ################################################################
 
 ################################################################
