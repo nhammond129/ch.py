@@ -72,7 +72,7 @@ BigMessage_Multiple = 0
 BigMessage_Cut = 1
 
 # minimum of 1 thread needed
-number_of_threads = 1
+Number_of_Threads = 1
 ################################################################
 # Struct class
 ################################################################
@@ -730,8 +730,8 @@ class Room:
     self._msgs = dict()
     self._wlock = False
     self._silent = False
-    self._banlist = list()
-    self._unbanlist = list()
+    self._banlist = dict()
+    self._unbanlist = dict()
 
     # Inited vars
     if self._mgr: self._connect()
@@ -833,8 +833,8 @@ class Room:
   def _getUserCount(self): return self._userCount
   def _getSilent(self): return self._silent
   def _setSilent(self, val): self._silent = val
-  def _getBanlist(self): return [record[2] for record in self._banlist]
-  def _getUnBanlist(self): return [[record[2],record[4]] for record in self._unbanlist]
+  def _getBanlist(self): return list(self._banlist.keys())
+  def _getUnBanlist(self): return [[record["target"], record["src"]] for record in self._unbanlist.values()]
 
   name = property(_getName)
   botname = property(_getBotName)
@@ -1101,51 +1101,53 @@ class Room:
     self._callEvent("onUserCountChange")
 
   def _rcmd_blocklist(self, args):
-    self._banlist = list()
+    self._banlist = dict()
     sections = ":".join(args).split(";")
     for section in sections:
       params = section.split(":")
       if len(params) != 5: continue
       if params[2] == "": continue
-      self._banlist.append((
-        params[0], #unid
-        params[1], #ip
-        User(params[2]), #target
-        float(params[3]), #time
-        User(params[4]) #src
-      ))
+      user = User(params[2])
+      self._banlist[user] = {
+        "unid":params[0],
+        "ip":params[1],
+        "target":user,
+        "time":float(params[3]),
+        "src":User(params[4])
+      }
     self._callEvent("onBanlistUpdate")
 
   def _rcmd_unblocklist(self, args):
-    self._unbanlist = list()
+    self._unbanlist = dict()
     sections = ":".join(args).split(";")
     for section in sections:
       params = section.split(":")
       if len(params) != 5: continue
       if params[2] == "": continue
-      self._unbanlist.append((
-        params[0], #unid
-        params[1], #ip
-        User(params[2]), #target
-        float(params[3]), #time
-        User(params[4]) #src
-      ))
+      user = User(params[2])
+      self._unbanlist[user] = {
+        "unid":params[0],
+        "ip":params[1],
+        "target":user,
+        "time":float(params[3]),
+        "src":User(params[4])
+      }
     self._callEvent("onUnBanlistUpdate")
 
   def _rcmd_blocked(self, args):
     if args[2] == "": return
     target = User(args[2])
     user = User(args[3])
-    self._banlist.append((args[0], args[1], target, float(args[4]), user))
+    self._banlist[user] = {"unid":args[0], "ip":args[1], "target":target, "time":float(args[4]), "src":user}
     self._callEvent("onBan", user, target)
-    self.requestBanlist()
 
   def _rcmd_unblocked(self, args):
     if args[2] == "": return
     target = User(args[2])
     user=User(args[3])
+    del self._banlist[user]
+    self._unbanlist[user] = {"unid":args[0], "ip":args[1], "target":target, "time":float(args[4]), "src":user}
     self._callEvent("onUnban", user, target)
-    self.requestBanlist()
 
   ####
   # Commands
@@ -1375,9 +1377,8 @@ class Room:
   # Util
   ####
   def _getBanRecord(self, user):
-    for record in self._banlist:
-      if record[2] == user:
-        return record
+    if user in self._banlist:
+      return self._banlist[user]
     return None
 
   def _callEvent(self, evt, *args, **kw):
@@ -2097,7 +2098,7 @@ class RoomManager:
   def main(self):
     self.onInit()
     self._running = True
-    for l in range(0,number_of_threads):
+    for l in range(0,Number_of_Threads):
       t = threading.Thread(target=self._joinThread)
       t.daemon = True
       t.start()
