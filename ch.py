@@ -409,38 +409,38 @@ class PM:
     self._connected = True
 
 
-    def _getAuth(self, name, password):
-      """
-      Request an auid using name and password.
+  def _getAuth(self, name, password):
+    """
+    Request an auid using name and password.
 
-      @type name: str
-      @param name: name
-      @type password: str
-      @param password: password
+    @type name: str
+    @param name: name
+    @type password: str
+    @param password: password
 
-      @rtype: str
-      @return: auid
-      """
-      data = urllib.parse.urlencode({
-        "user_id": name,
-        "password": password,
-        "storecookie": "on",
-        "checkerrors": "yes"
-      }).encode()
-      try:
-        resp = urllib.request.urlopen("http://chatango.com/login", data)
-        headers = resp.headers
-      except Exception:
-        return None
-      for header, value in headers.items():
-        if header.lower() == "set-cookie":
-          m = self._auth_re.search(value)
-          if m:
-            auth = m.group(1)
-            if auth == "":
-              return None
-            return auth
+    @rtype: str
+    @return: auid
+    """
+    data = urllib.parse.urlencode({
+      "user_id": name,
+      "password": password,
+      "storecookie": "on",
+      "checkerrors": "yes"
+    }).encode()
+    try:
+      resp = urllib.request.urlopen("http://chatango.com/login", data)
+      headers = resp.headers
+    except Exception:
       return None
+    for header, value in headers.items():
+      if header.lower() == "set-cookie":
+        m = self._auth_re.search(value)
+        if m:
+          auth = m.group(1)
+          if auth == "":
+            return None
+          return auth
+    return None
 
   def _auth(self):
     self._auid = self._getAuth(self._mgr.name, self._mgr.password)
@@ -833,6 +833,7 @@ class Room:
   def _getSilent(self): return self._silent
   def _setSilent(self, val): self._silent = val
   def _getBanlist(self): return [record[2] for record in self._banlist]
+  def _getUnBanlist(self): return [[record[2],record[4]] for record in self._unbanlist]
 
   name = property(_getName)
   botname = property(_getBotName)
@@ -848,6 +849,7 @@ class Room:
   usercount = property(_getUserCount)
   silent = property(_getSilent, _setSilent)
   banlist = property(_getBanlist)
+  unbanlist = property(_getUnBanlist)
 
   ####
   # Feed/process
@@ -918,6 +920,7 @@ class Room:
     self._sendCommand("g_participants", "start")
     self._sendCommand("getpremium", "1")
     self.requestBanlist()
+    self.requestUnBanlist()
     if self._connectAmmount == 0:
       self._callEvent("onConnect")
       for msg in reversed(self._i_log):
@@ -1111,6 +1114,22 @@ class Room:
         User(params[4]) #src
       ))
     self._callEvent("onBanlistUpdate")
+
+  def _rcmd_unblocklist(self, args):
+    self._unbanlist = list()
+    sections = ":".join(args).split(";")
+    for section in sections:
+      params = section.split(":")
+      if len(params) != 5: continue
+      if params[2] == "": continue
+      self._unbanlist.append((
+        params[0], #unid
+        params[1], #ip
+        User(params[2]), #target
+        float(params[3]), #time
+        User(params[4]) #src
+      ))
+    self._callEvent("onUnBanlistUpdate")
 
   def _rcmd_blocked(self, args):
     if args[2] == "": return
@@ -1315,6 +1334,10 @@ class Room:
   def requestBanlist(self):
     """Request an updated banlist."""
     self._sendCommand("blocklist", "block", "", "next", "500")
+
+  def requestUnBanlist(self):
+    """Request an updated banlist."""
+    self._sendCommand("blocklist", "unblock", "", "next", "500")
 
   def rawUnban(self, name, ip, unid):
     """
@@ -1791,6 +1814,15 @@ class RoomManager:
   def onBanlistUpdate(self, room):
     """
     Called when a banlist gets updated.
+
+    @type room: Room
+    @param room: room where the event occured
+    """
+    pass
+
+  def onUnBanlistUpdate(self, room):
+    """
+    Called when a unbanlist gets updated.
 
     @type room: Room
     @param room: room where the event occured
