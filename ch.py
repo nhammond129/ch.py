@@ -10,7 +10,7 @@
 #  domzy
 #  kamijoutouma
 #  piks
-# Version: 1.3.5a
+# Version: 1.3.6
 # Description:
 #  An event-based library for connecting to one or multiple Chatango rooms, has
 #  support for several things including: messaging, message font,
@@ -206,42 +206,170 @@ def _getAnonId(n, ssid):
     return "NNNN"
 
 ################################################################
-# PM Auth
+# ANON PM class
 ################################################################
-_auth_re = re.compile(r"auth\.chatango\.com ?= ?([^;]*)", re.IGNORECASE)
 
-def _getAuth(name, password):
-  """
-  Request an auid using name and password.
+class _ANON_PM_OBJECT:
+  """Manages connection with Chatango anon PM."""
+  def __init__(self, mgr, name):
+    self._connected = False
+    self._mgr = mgr
+    self._wlock = False
+    self._firstCommand = True
+    self._wbuf = b""
+    self._wlockbuf = b""
+    self._rbuf = b""
+    self._pingTask = None
+    self._name = name
 
-  @type name: str
-  @param name: name
-  @type password: str
-  @param password: password
+  def _auth(self):
+    self._sendCommand("mhs","mini","unknown","%s" % (self._name))
+    self._setWriteLock(True)
+    return True
 
-  @rtype: str
-  @return: auid
-  """
-  data = urllib.parse.urlencode({
-    "user_id": name,
-    "password": password,
-    "storecookie": "on",
-    "checkerrors": "yes"
-  }).encode()
-  try:
-    resp = urllib.request.urlopen("http://chatango.com/login", data)
-    headers = resp.headers
-  except Exception:
-    return None
-  for header, value in headers.items():
-    if header.lower() == "set-cookie":
-      m = _auth_re.search(value)
-      if m:
-        auth = m.group(1)
-        if auth == "":
-          return None
-        return auth
-  return None
+  def disconnect(self):
+    """Disconnect the bot from PM"""
+    self._disconnect()
+    self._callEvent("onAnonPMDisconnect", User(self._name))
+
+  def _disconnect(self):
+    self._connected = False
+    self._sock.close()
+    self._sock = None
+
+  def ping(self):
+    """send a ping"""
+    self._sendCommand("")
+    self._callEvent("onPMPing")
+
+  def message(self, user, msg):
+    """send a pm to a user"""
+    if msg!=None:
+      self._sendCommand("msg", user.name, msg)
+
+  ####
+  # Feed
+  ####
+  def _feed(self, data):
+    """
+    Feed data to the connection.
+
+    @type data: bytes
+    @param data: data to be fed
+    """
+    self._rbuf += data
+    while self._rbuf.find(b"\x00") != -1:
+      data = self._rbuf.split(b"\x00")
+      for food in data[:-1]:
+        self._process(food.decode(errors="replace").rstrip("\r\n"))
+      self._rbuf = data[-1]
+
+  def _process(self, data):
+    """
+    Process a command string.
+
+    @type data: str
+    @param data: the command string
+    """
+    self._callEvent("onRaw", data)
+    data = data.split(":")
+    cmd, args = data[0], data[1:]
+    func = "_rcmd_" + cmd
+    if hasattr(self, func):
+      getattr(self, func)(args)
+    else:
+      if debug:
+        print("unknown data: "+str(data))
+
+  def _getManager(self): return self._mgr
+
+  mgr = property(_getManager)
+
+  ####
+  # Received Commands
+  ####
+
+  def _rcmd_mhs(self, args):
+    """
+    note to future maintainers
+    
+    args[1] is ether "online" or "offline"
+    """
+    self._connected = True
+    self._setWriteLock(False)
+
+  def _rcmd_msg(self, args):
+    user = User(args[0])
+    body = _strip_html(":".join(args[5:]))
+    self._callEvent("onPMMessage", user, body)
+
+  ####
+  # Util
+  ####
+  def _callEvent(self, evt, *args, **kw):
+    getattr(self.mgr, evt)(self, *args, **kw)
+    self.mgr.onEventCalled(self, evt, *args, **kw)
+
+  def _write(self, data):
+    if self._wlock:
+      self._wlockbuf += data
+    else:
+      self.mgr._write(self, data)
+
+  def _setWriteLock(self, lock):
+    self._wlock = lock
+    if self._wlock == False:
+      self._write(self._wlockbuf)
+      self._wlockbuf = b""
+
+  def _sendCommand(self, *args):
+    """
+    Send a command.
+
+    @type args: [str, str, ...]
+    @param args: command and list of arguments
+    """
+    if self._firstCommand:
+      terminator = b"\x00"
+      self._firstCommand = False
+    else:
+      terminator = b"\r\n\x00"
+    self._write(":".join(args).encode() + terminator)
+
+class ANON_PM:
+  """Comparable wrapper for anon Chatango PM"""
+  ####
+  # Init
+  ####
+  def __init__(self, mgr):
+    self._mgr = mgr
+    self._wlock = False
+    self._firstCommand = True
+    self._persons = dict()
+    self._wlockbuf = b""
+    self._pingTask = None
+
+  ####
+  # Connections
+  ####
+  def _connect(self,name):
+    self._persons[name] = _ANON_PM_OBJECT(self._mgr,name)
+    sock = socket.socket()
+    sock.connect((self._mgr._anonPMHost, self._mgr._PMPort))
+    sock.setblocking(False)
+    self._persons[name]._sock = sock
+    if not self._persons[name]._auth(): return
+    self._persons[name]._pingTask = self._mgr.setInterval(self._mgr._pingDelay, self._persons[name].ping)
+    self._persons[name]._connected = True
+
+  def message(self, user, msg):
+    """send a pm to a user"""
+    if not user.name in self._persons:
+      self._connect(user.name)
+    self._persons[user.name].message(user,msg)
+
+  def getConnections(self):
+    return list(self._persons.values())
 
 ################################################################
 # PM class
@@ -252,6 +380,7 @@ class PM:
   # Init
   ####
   def __init__(self, mgr):
+    self._auth_re = re.compile(r"auth\.chatango\.com ?= ?([^;]*)", re.IGNORECASE)
     self._connected = False
     self._mgr = mgr
     self._auid = None
@@ -279,8 +408,42 @@ class PM:
     self._pingTask = self.mgr.setInterval(self._mgr._pingDelay, self.ping)
     self._connected = True
 
+
+    def _getAuth(self, name, password):
+      """
+      Request an auid using name and password.
+
+      @type name: str
+      @param name: name
+      @type password: str
+      @param password: password
+
+      @rtype: str
+      @return: auid
+      """
+      data = urllib.parse.urlencode({
+        "user_id": name,
+        "password": password,
+        "storecookie": "on",
+        "checkerrors": "yes"
+      }).encode()
+      try:
+        resp = urllib.request.urlopen("http://chatango.com/login", data)
+        headers = resp.headers
+      except Exception:
+        return None
+      for header, value in headers.items():
+        if header.lower() == "set-cookie":
+          m = self._auth_re.search(value)
+          if m:
+            auth = m.group(1)
+            if auth == "":
+              return None
+            return auth
+      return None
+
   def _auth(self):
-    self._auid = _getAuth(self._mgr.name, self._mgr.password)
+    self._auid = self._getAuth(self._mgr.name, self._mgr.password)
     if self._auid == None:
       self._sock.close()
       self._callEvent("onLoginFail")
@@ -524,6 +687,9 @@ class PM:
     else:
       terminator = b"\r\n\x00"
     self._write(":".join(args).encode() + terminator)
+
+  def getConnections(self):
+    return [self]
 
 ################################################################
 # Room class
@@ -915,7 +1081,7 @@ class Room:
     self._callEvent("onFloodBanRepeat")
 
   def _rcmd_delete(self, args):
-    msg = self._msgs[args[0]]
+    msg = self._msgs.get(args[0])
     if msg:
       if msg in self._history:
         self._history.remove(msg)
@@ -1285,6 +1451,8 @@ class RoomManager:
   ####
   _Room = Room
   _PM = PM
+  _ANON_PM = ANON_PM
+  _anonPMHost = "b1.chatango.com"
   _PMHost = "c1.chatango.com"
   _PMPort = 5222
   _TimerResolution = 0.2 #at least x times per second
@@ -1309,7 +1477,10 @@ class RoomManager:
     self._rooms_queue = queue.Queue()
     self._rooms_lock = threading.Lock()
     if pm:
-      self._pm = self._PM(mgr = self)
+      if self._password:
+        self._pm = self._PM(mgr = self)
+      else:
+        self._pm = self._ANON_PM(mgr = self)
     else:
       self._pm = None
 
@@ -1635,6 +1806,15 @@ class RoomManager:
     """
     pass
 
+  def onAnonPMDisconnect(self, pm, user):
+    """
+    Called when disconnected from the pm
+    
+    @type pm: PM
+    @param pm: the pm
+    """
+    pass
+
   def onPMDisconnect(self, pm):
     """
     Called when disconnected from the pm
@@ -1875,7 +2055,7 @@ class RoomManager:
   def getConnections(self):
     li = list(self._rooms.values())
     if self._pm:
-      li.append(self._pm)
+      li.extend(self._pm.getConnections())
     return [c for c in li if c._sock != None]
 
   ####
