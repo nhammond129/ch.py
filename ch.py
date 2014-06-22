@@ -1368,7 +1368,7 @@ class Room:
     """
     rec = self._getBanRecord(user)
     if rec:
-      self.rawUnban(rec[2].name, rec[1], rec[0])
+      self.rawUnban(rec["target"].name, rec["ip"], rec["unid"])
       return True
     else:
       return False
