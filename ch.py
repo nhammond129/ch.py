@@ -828,7 +828,7 @@ class Room:
       newset.add(mod)
     return newset
   def _getModNames(self):
-    mods = self.getMods()
+    mods = self._getMods()
     return [x.name for x in mods]
   def _getUserCount(self): return self._userCount
   def _getSilent(self): return self._silent
@@ -976,7 +976,7 @@ class Room:
     else: fontColor, fontFace, fontSize = None, None, None
     msg = Message(
       time = mtime,
-      user = User(name),
+      user = User(name=name,puid=puid),
       body = msg,
       raw = rawmsg,
       ip = ip,
@@ -1025,7 +1025,7 @@ class Room:
     else: fontColor, fontFace, fontSize = None, None, None
     msg = Message(
       time = mtime,
-      user = User(name),
+      user = User(name=name,puid=puid),
       body = msg,
       raw = rawmsg,
       ip = ip,
@@ -1056,7 +1056,7 @@ class Room:
     if args[0] == "0": #leave
       name = args[3].lower()
       if name == "none": return
-      user = User(name)
+      user = User(name=name, puid=args[2])
       user.removeSessionId(self, args[1])
       self._userlist.remove(user)
       if user not in self._userlist or not self.mgr._userlistEventUnique:
@@ -1064,10 +1064,7 @@ class Room:
     else: #join
       name = args[3].lower()
       if name == "none": return
-      user = User(
-        name = name,
-        room = self
-      )
+      user = User(name=name, puid=args[2])
       user.addSessionId(self, args[1])
       if user not in self._userlist: doEvent = True
       else: doEvent = False
@@ -2239,6 +2236,7 @@ class _User:
   ####
   def __init__(self, name, **kw):
     self._name = name.lower()
+    self._puid = ""
     self._sids = dict()
     self._msgs = list()
     self._nameColor = "000"
@@ -2255,6 +2253,7 @@ class _User:
   # Properties
   ####
   def _getName(self): return self._name
+  def _getPuid(self): return self._puid
   def _getSessionIds(self, room = None):
     if room:
       return self._sids.get(room, set())
@@ -2268,6 +2267,7 @@ class _User:
   def _getNameColor(self): return self._nameColor
 
   name = property(_getName)
+  puid = property(_getPuid)
   sessionids = property(_getSessionIds)
   rooms = property(_getRooms)
   roomnames = property(_getRoomNames)
