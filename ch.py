@@ -971,12 +971,14 @@ class Room:
       else: nameColor = None
     i = args[5]
     unid = args[4]
+    user = User(name)
+    user.updatePuid(puid)
     #Create an anonymous message and queue it because msgid is unknown.
     if f: fontColor, fontFace, fontSize = _parseFont(f)
     else: fontColor, fontFace, fontSize = None, None, None
     msg = Message(
       time = mtime,
-      user = User(name=name,puid=puid),
+      user = user,
       body = msg,
       raw = rawmsg,
       ip = ip,
@@ -1020,12 +1022,14 @@ class Room:
       else: nameColor = None
     i = args[5]
     unid = args[4]
+    user = User(name)
+    user.updatePuid(puid)
     #Create an anonymous message and queue it because msgid is unknown.
     if f: fontColor, fontFace, fontSize = _parseFont(f)
     else: fontColor, fontFace, fontSize = None, None, None
     msg = Message(
       time = mtime,
-      user = User(name=name,puid=puid),
+      user = user,
       body = msg,
       raw = rawmsg,
       ip = ip,
@@ -1053,18 +1057,17 @@ class Room:
       self._userlist.append(user)
 
   def _rcmd_participant(self, args):
+    name = args[3].lower()
+    if name == "none": return
+    user = User(name)
+    user.updatePuid(args[2])
+
     if args[0] == "0": #leave
-      name = args[3].lower()
-      if name == "none": return
-      user = User(name=name, puid=args[2])
       user.removeSessionId(self, args[1])
       self._userlist.remove(user)
       if user not in self._userlist or not self.mgr._userlistEventUnique:
         self._callEvent("onLeave", user)
     else: #join
-      name = args[3].lower()
-      if name == "none": return
-      user = User(name=name, puid=args[2])
       user.addSessionId(self, args[1])
       if user not in self._userlist: doEvent = True
       else: doEvent = False
@@ -2306,6 +2309,9 @@ class _User:
         return False
     except KeyError:
       return False
+
+  def updatePuid(self, puid):
+    self._puid = puid
 
   ####
   # Repr
