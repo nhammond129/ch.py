@@ -523,7 +523,8 @@ class PM:
       name, last_on, is_on, idle = args[i * 4: i * 4 + 4]
       user = User(name)
       self._contacts.add(user)
-      if not is_on == "on": self._status[user] = [int(last_on), False, 0]
+      if last_on=="None":pass#in case chatango gives a "None" as data argument
+      elif not is_on == "on": self._status[user] = [int(last_on), False, 0]
       elif idle == '0': self._status[user] = [int(last_on), True, 0]
       else: self._status[user] = [int(last_on), True, time.time() - int(idle) * 60]
 
