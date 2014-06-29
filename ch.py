@@ -972,7 +972,8 @@ class Room:
     i = args[5]
     unid = args[4]
     user = User(name)
-    user.updatePuid(puid)
+    if puid:
+      user.updatePuid(puid)
     #Create an anonymous message and queue it because msgid is unknown.
     if f: fontColor, fontFace, fontSize = _parseFont(f)
     else: fontColor, fontFace, fontSize = None, None, None
@@ -1023,7 +1024,8 @@ class Room:
     i = args[5]
     unid = args[4]
     user = User(name)
-    user.updatePuid(puid)
+    if puid:
+      user.updatePuid(puid)
     #Create an anonymous message and queue it because msgid is unknown.
     if f: fontColor, fontFace, fontSize = _parseFont(f)
     else: fontColor, fontFace, fontSize = None, None, None
@@ -1060,7 +1062,9 @@ class Room:
     name = args[3].lower()
     if name == "none": return
     user = User(name)
-    user.updatePuid(args[2])
+    puid = args[2]
+    if puid:
+      user.updatePuid(puid)
 
     if args[0] == "0": #leave
       user.removeSessionId(self, args[1])
