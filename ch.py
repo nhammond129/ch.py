@@ -1142,14 +1142,14 @@ class Room:
     if args[2] == "": return
     target = User(args[2])
     user = User(args[3])
-    self._banlist[user] = {"unid":args[0], "ip":args[1], "target":target, "time":float(args[4]), "src":user}
+    self._banlist[target] = {"unid":args[0], "ip":args[1], "target":target, "time":float(args[4]), "src":user}
     self._callEvent("onBan", user, target)
 
   def _rcmd_unblocked(self, args):
     if args[2] == "": return
     target = User(args[2])
     user=User(args[3])
-    del self._banlist[user]
+    del self._banlist[target]
     self._unbanlist[user] = {"unid":args[0], "ip":args[1], "target":target, "time":float(args[4]), "src":user}
     self._callEvent("onUnban", user, target)
 
