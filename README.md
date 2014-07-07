@@ -16,9 +16,7 @@ The previous holder (pun unintended) unexpectedly dropped from his/her position 
 it and I just happened to be the one of the few who tried to pick up the pieces. ~~~~ nullspeaker
 
 ----
-  Nor am I the original author, just the 2nd current maintainer, I just patch up
-any errors made by Nullspeaker and others peoples' patch for ch.py, updating it
-when needed and fixing it when it's broken. ~~~~ asl97
+  Feature requests and bug reports should be directed to the issues page of the repository on Github. Please tag with the appropriate labels when doing so, as well. Contributions can be made by submitting a pull request that I or others can then merge. Link to the repository's page is at the bottom of this README. Email me (Nullspeaker) personally if you would like to request ability to merge your own commits to master without direct approval.
 
 ----
 http://nullspeaker.github.io/ch.py/
