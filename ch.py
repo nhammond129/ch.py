@@ -575,13 +575,13 @@ class PM:
 
   def _rcmd_wlonline(self, args):
     user = User(args[0])
-    last_on = int(args[1])
+    last_on = float(args[1])
     self._status[user] = [last_on,True,last_on]
     self._callEvent("onPMContactOnline", user)
 
   def _rcmd_wloffline(self, args):
     user = User(args[0])
-    last_on = int(args[1])
+    last_on = float(args[1])
     self._status[user] = [last_on,False,0]
     self._callEvent("onPMContactOffline", user)
 
