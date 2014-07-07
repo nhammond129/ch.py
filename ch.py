@@ -1225,7 +1225,7 @@ class Room:
     @type user: User
     @param user: User to mod.
     """
-    if self.getLevel(self.user) == 2:
+    if self.getLevel(User(self.currentname)) == 2:
       self._sendCommand("addmod", user.name)
 
   def removeMod(self, user):
@@ -1235,7 +1235,7 @@ class Room:
     @type user: User
     @param user: User to demod.
     """
-    if self.getLevel(self.user) == 2:
+    if self.getLevel(User(self.currentname)) == 2:
       self._sendCommand("removemod", user.name)
 
   def flag(self, message):
