@@ -759,7 +759,7 @@ class Room:
     self._reconnecting = True
     if self.connected:
       self._disconnect()
-    self._uid = genUid()
+    self._uid = _genUid()
     self._connect()
     self._reconnecting = False
 
