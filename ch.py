@@ -2267,7 +2267,7 @@ class _User:
     else:
       return set.union(*self._sids.values())
   def _getRooms(self): return self._sids.keys()
-  def _getRoomNames(self): return [room.name for room in self.getRooms()]
+  def _getRoomNames(self): return [room.name for room in self._getRooms()]
   def _getFontColor(self): return self._fontColor
   def _getFontFace(self): return self._fontFace
   def _getFontSize(self): return self._fontSize
