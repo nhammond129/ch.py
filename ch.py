@@ -759,7 +759,7 @@ class Room:
     self._reconnecting = True
     if self.connected:
       self._disconnect()
-    self._uid = genUid()
+    self._uid = _genUid()
     self._connect()
     self._reconnecting = False
 
@@ -1206,7 +1206,7 @@ class Room:
           self.message(sect, html = html)
       return
     msg = "<n" + self.user.nameColor + "/>" + msg
-    if self._currentname != None or not self._currentname.startswith("!anon"):
+    if self._currentname != None and not self._currentname.startswith("!anon"):
       msg = "<f x%0.2i%s=\"%s\">" %(self.user.fontSize, self.user.fontColor, self.user.fontFace) + msg
     self.rawMessage(msg)
 
@@ -1225,7 +1225,7 @@ class Room:
     @type user: User
     @param user: User to mod.
     """
-    if self.getLevel(self.user) == 2:
+    if self.getLevel(User(self.currentname)) == 2:
       self._sendCommand("addmod", user.name)
 
   def removeMod(self, user):
@@ -1235,7 +1235,7 @@ class Room:
     @type user: User
     @param user: User to demod.
     """
-    if self.getLevel(self.user) == 2:
+    if self.getLevel(User(self.currentname)) == 2:
       self._sendCommand("removemod", user.name)
 
   def flag(self, message):
@@ -2267,7 +2267,7 @@ class _User:
     else:
       return set.union(*self._sids.values())
   def _getRooms(self): return self._sids.keys()
-  def _getRoomNames(self): return [room.name for room in self.getRooms()]
+  def _getRoomNames(self): return [room.name for room in self._getRooms()]
   def _getFontColor(self): return self._fontColor
   def _getFontFace(self): return self._fontFace
   def _getFontSize(self): return self._fontSize
