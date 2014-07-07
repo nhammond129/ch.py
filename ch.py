@@ -1206,7 +1206,7 @@ class Room:
           self.message(sect, html = html)
       return
     msg = "<n" + self.user.nameColor + "/>" + msg
-    if self._currentname != None or not self._currentname.startswith("!anon"):
+    if self._currentname != None and not self._currentname.startswith("!anon"):
       msg = "<f x%0.2i%s=\"%s\">" %(self.user.fontSize, self.user.fontColor, self.user.fontFace) + msg
     self.rawMessage(msg)
 
