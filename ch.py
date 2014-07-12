@@ -10,7 +10,7 @@
 #  domzy
 #  kamijoutouma
 #  piks
-# Version: 1.3.6
+# Version: 1.3.7
 # Description:
 #  An event-based library for connecting to one or multiple Chatango rooms, has
 #  support for several things including: messaging, message font,
