@@ -23,6 +23,5 @@ http://nullspeaker.github.io/ch.py/
 No documentation supplied, as there is no apparent demand for such.
 
 ----
-Formal Major Contributors
-
+Former Major Contributor(s)
 [asl97](https://github.com/asl97)
