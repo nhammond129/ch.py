@@ -42,7 +42,6 @@ import random
 import re
 import sys
 import select
-import queue
 
 ################################################################
 # Debug stuff
@@ -58,7 +57,9 @@ if sys.version_info[0] < 3:
     request = __import__("urllib2")
   input = raw_input
   import codecs
+  import Queue as queue
 else:
+  import queue
   import urllib.request
   import urllib.parse
 
