@@ -1187,7 +1187,7 @@ class Room:
 
   def message(self, msg, html = False):
     """
-    Send a message.
+    Send a message. (Use "\n" for new line)
 
     @type msg: str
     @param msg: message
@@ -1208,7 +1208,10 @@ class Room:
       return
     msg = "<n" + self.user.nameColor + "/>" + msg
     if self._currentname != None and not self._currentname.startswith("!anon"):
-      msg = "<f x%0.2i%s=\"%s\">" %(self.user.fontSize, self.user.fontColor, self.user.fontFace) + msg
+      font_properties = "<f x%0.2i%s=\"%s\">" %(self.user.fontSize, self.user.fontColor, self.user.fontFace)
+      if "\n" in msg:
+        msg.replace("\n", "</f></p><p>%s" %(font_properties))
+      msg = font_properties + msg
     msg.replace("~","&#126;")
     self.rawMessage(msg)
 
