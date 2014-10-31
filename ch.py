@@ -1278,9 +1278,8 @@ class Room:
     if self.getLevel(self.user) > 0:
       self._sendCommand("delmsg", message.msgid)
 
-  def rawClearUser(self, unid):
-    self._sendCommand("delallmsg", unid)
-
+  def rawClearUser(self, unid, ip, user):
+    self._sendCommand("delallmsg", unid, ip, user)
   def clearUser(self, user):
     """
     Clear all of a user's messages. (Moderator only)
@@ -1294,8 +1293,9 @@ class Room:
     if self.getLevel(self.user) > 0:
       msg = self.getLastMessage(user)
       if msg:
-        self.rawClearUser(msg.unid)
-      return True
+        if msg.user.name[0] in ["!","#"]:self.rawClearUser(msg.unid, msg.ip,"")
+        else:self.rawClearUser(msg.unid,msg.ip,msg.user.name)
+        return True
     return False
 
   def clearall(self):
