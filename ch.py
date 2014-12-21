@@ -830,7 +830,7 @@ class Room:
     return newset
   def _getModNames(self):
     mods = self._getMods()
-    return [x.name for x in mods]
+    return [x.name.split(",")[0] for x in mods]
   def _getUserCount(self): return self._userCount
   def _getSilent(self): return self._silent
   def _setSilent(self, val): self._silent = val
@@ -1423,7 +1423,7 @@ class Room:
   def getLevel(self, user):
     """get the level of user in a room"""
     if user == self._owner: return 2
-    if user in self._mods: return 1
+    if user.name in self.modnames: return 1
     return 0
 
   def getLastMessage(self, user = None):
