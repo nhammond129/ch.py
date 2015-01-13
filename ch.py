@@ -1268,7 +1268,7 @@ class Room:
       return True
     return False
 
-  def delete(self, message):
+  def delete(self, user):
     """
     Delete a message. (Moderator only)
 
@@ -1276,7 +1276,11 @@ class Room:
     @param message: message to delete
     """
     if self.getLevel(self.user) > 0:
-      self._sendCommand("delmsg", message.msgid)
+      msg = self.getLastMessage(user)
+      if msg:
+        self._sendCommand("delmsg", msg.msgid)
+      return True
+    return False
 
   def rawClearUser(self, unid):
     self._sendCommand("delallmsg", unid)
