@@ -1268,7 +1268,7 @@ class Room:
       return True
     return False
 
-  def delete(self, user):
+  def deleteMessage(self, message):
     """
     Delete a message. (Moderator only)
 
@@ -1276,11 +1276,28 @@ class Room:
     @param message: message to delete
     """
     if self.getLevel(self.user) > 0:
+      self._sendCommand("delmsg", message.msgid)
+
+  def deleteUser(self, user):
+    """
+    Delete a message. (Moderator only)
+
+    @type message: User
+    @param message: delete user's last message
+    """
+    if self.getLevel(self.user) > 0:
       msg = self.getLastMessage(user)
       if msg:
         self._sendCommand("delmsg", msg.msgid)
       return True
     return False
+
+  def delete(self, user):
+    """
+    compatibility wrapper for deleteUser
+    """
+    print("[obsolete] the delete function is obsolete, please use deleteUser")
+    return self.deleteUser(user)
 
   def rawClearUser(self, unid, ip, user):
     self._sendCommand("delallmsg", unid, ip, user)
@@ -2357,6 +2374,9 @@ class Message:
     if self._msgid != None and self._msgid in self._room._msgs:
       del self._room._msgs[self._msgid]
       self._msgid = None
+
+  def delete(self):
+    self._room.deleteMessage(self)
 
   ####
   # Init
