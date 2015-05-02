@@ -830,7 +830,7 @@ class Room:
     return newset
   def _getModNames(self):
     mods = self._getMods()
-    return [x.name.split(",")[0] for x in mods]
+    return [x.name for x in mods]
   def _getUserCount(self): return self._userCount
   def _getSilent(self): return self._silent
   def _setSilent(self, val): self._silent = val
@@ -911,7 +911,7 @@ class Room:
     self._owner = User(args[0])
     self._uid = args[1]
     self._aid = args[1][4:8]
-    self._mods = set(map(lambda x: User(x), args[6].split(";")))
+    self._mods = set(map(lambda x: User(x.split(",")[0]), args[6].split(";")))
     self._i_log = list()
 
   def _rcmd_denied(self, args):
@@ -945,7 +945,7 @@ class Room:
 
   def _rcmd_mods(self, args):
     modnames = args
-    mods = set(map(lambda x: User(x), modnames))
+    mods = set(map(lambda x: User(x.split(",")[0]), modnames))
     premods = self._mods
     for user in mods - premods: #modded
       self._mods.add(user)
