@@ -1210,7 +1210,7 @@ class Room:
     if self._currentname != None and not self._currentname.startswith("!anon"):
       font_properties = "<f x%0.2i%s=\"%s\">" %(self.user.fontSize, self.user.fontColor, self.user.fontFace)
       if "\n" in msg:
-        msg.replace("\n", "</f></p><p>%s" %(font_properties))
+        msg = msg.replace("\n", "</f></p><p>%s" %(font_properties))
       msg = font_properties + msg
     msg.replace("~","&#126;")
     self.rawMessage(msg)
