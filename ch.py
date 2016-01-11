@@ -1292,12 +1292,12 @@ class Room:
       return True
     return False
 
-  def delete(self, user):
+  def delete(self, message):
     """
-    compatibility wrapper for deleteUser
+    compatibility wrapper for deleteMessage
     """
-    print("[obsolete] the delete function is obsolete, please use deleteUser")
-    return self.deleteUser(user)
+    print("[obsolete] the delete function is obsolete, please use deleteMessage")
+    return self.deleteMessage(message)
 
   def rawClearUser(self, unid, ip, user):
     self._sendCommand("delallmsg", unid, ip, user)
