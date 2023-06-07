@@ -16,7 +16,7 @@
 #   pre-1.4.0:
 #       Mostly cleaning up my mess and modernizing the code base
 # Description:
-#   An mostly abandoned event-based library for connecting
+#   A mostly abandoned event-based library for connecting
 #   to one or multiple Chatango rooms, has support for several things
 #   including: messaging, message font, name color, deleting, banning,
 #   recent history, 2 userlist modes, flagging, avoiding flood bans,
