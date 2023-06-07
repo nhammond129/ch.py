@@ -37,7 +37,9 @@
 # Imports
 ################################################################
 from __future__ import annotations
-from typing import Any, Self, Callable
+from typing import Any, Self, Callable, Optional
+import typing
+import enum
 
 import socket
 import threading
@@ -47,8 +49,9 @@ import re
 import select
 import urllib.request
 import urllib.parse
+import urllib.error
 import bisect
-import html
+import html as _html
 
 from ch_weights import specials, tsweights
 
@@ -62,29 +65,37 @@ debug = False
 ################################################################
 # Constants
 ################################################################
-Userlist_Recent = 0
-Userlist_All = 1
+class Userlist_Mode(enum.Enum):
+    Recent = 1
+    All = 2
 
-BigMessage_Multiple = 0
-BigMessage_Cut = 1
 
-# minimum of 1 thread needed
-Number_of_Threads = 1
+class BigMessage_Mode(enum.Enum):
+    Multiple = 1
+    Cut = 2
+
+
+class BanRecord(typing.NamedTuple):
+    unid: str
+    ip: str
+    target: User
+    time: float
+    src: User
 
 
 ################################################################
-# Tagserver stuff
+# Tag server stuff
 ################################################################
-# generate a more efficent data structor from tsweights,
+# generate a more efficient data structure from tsweights,
 # improve `_getServer` performance by 10x
-tssum = sum(x[1] for x in tsweights)
-tsserver: list[str] = []
-tsfreq: list[float] = []
+ts_sum = sum(x[1] for x in tsweights)
+ts_server: list[str] = []
+ts_freq: list[float] = []
 freq = 0.0
 for server, weight in tsweights:
-    tsserver.append(server)
-    freq += weight/tssum
-    tsfreq.append(freq)
+    ts_server.append(server)
+    freq += weight/ts_sum
+    ts_freq.append(freq)
 del freq
 
 
@@ -95,7 +106,7 @@ def _getServer(group: str):
     lnv = max(int(group[6:9], 36), 1000) if len(group) > 6 else 1000
     num = (fnv / lnv) % 1
 
-    return tsserver[bisect.bisect_left(tsfreq, num)]
+    return ts_server[bisect.bisect_left(ts_freq, num)]
 
 
 def getServer(group: str) -> str:
@@ -133,7 +144,7 @@ def _clean_message(msg: str) -> tuple[str, str, str]:
     n = (r := re.search("<n(.*?)/>", msg)) and r.group(1) or ""
     f = (r := re.search("<f(.*?)>", msg)) and r.group(1) or ""
     msg = _strip_html(msg)
-    msg = html.unescape(msg)
+    msg = _html.unescape(msg)
     msg = msg.strip()
     return msg, n, f
 
@@ -164,7 +175,7 @@ def _parseFont(f: str):
 ################################################################
 # Anon id
 ################################################################
-def _getAnonId(n: str | None, ssid: str) -> str:
+def _getAnonId(n: str, ssid: str) -> str:
     """
     Gets the anon's id.
 
@@ -198,17 +209,17 @@ class User:
 
     _users: dict[str, Self] = dict()
 
-    def __new__(cls, name: str, **kw: dict[str, Any]) -> Self:
+    def __new__(cls, name: str, **kw: ...) -> Self:
         """Return existing User Object for given user name"""
         lname = name.lower()
         if lname not in cls._users:
-            cls._users[lname] = super().__new__(cls)
+            cls._users[lname] = super().__new__(cls, **kw)
         return cls._users[lname]
 
     ####
     # Init
     ####
-    def __init__(self, name: str, **kw: dict[str, Any]):
+    def __init__(self, name: str, **kw: ...):
         self.name = name.lower()
         self.sids: dict[Room, set[str]] = dict()
         self.msgs: list[Message] = list()
@@ -219,22 +230,24 @@ class User:
         self.mbg = False
         self.mrec = False
         for attr, val in kw.items():
-            # Avoid overriding exisiting val with None
+            # Avoid overriding existing val with None
             if val is not None:
                 setattr(self, attr, val)
 
     ####
     # Properties
     ####
-    def getSessionIds(self, room: Room | None = None) -> set[str]:
+    def getSessionIds(self, room: Optional[Room] = None) -> set[str]:
         if room:
             return self.sids.get(room, set())
         elif (sids := self.sids.values()):
             # check that we actually have some data.
             # set.union will crash without args
 
-            # type checking doesn't like that the set class's union return unknown
-            return set.union(*sids)  # type: ignore
+            # type checking doesn't like that the set.union return unknown
+            # explicitly create a set with the expected typing
+            output: set[str] = set()
+            return output.union(*sids)
         else:
             return set()
 
@@ -316,12 +329,12 @@ class Message:
     ####
     # Init
     ####
-    def __init__(self, /, time: float, user: User, body: str, raw: str, ip: str,
-                 nameColor: str, fontColor: str, fontFace: str, fontSize: str,
-                 unid: str, puid: str, room: Room | PM, **kw: dict[str, Any]):
+    def __init__(self, /, timestamp: float, user: User, body: str, raw: str, ip: str,
+                 nameColor: str | None, fontColor: str | None, fontFace: str | None,
+                 fontSize: str | None, unid: str, puid: str, room: Room | PM, **kw: ...):
         """init, don't overwrite"""
-        self.msgid: str | None = None
-        self.time = time
+        self.msgid: Optional[str] = None
+        self.time = timestamp
         self.user = user
         self.body = body
         self.raw = raw
@@ -352,7 +365,7 @@ class Task:
         self.target = time.time() + timeout
         self.timeout = timeout
         self.func = func
-        self.isInterval = False
+        self.isInterval = isInterval
         self.args = args
         self.kw = kw
 
@@ -434,7 +447,8 @@ class PM:
 
         try:
             headers = urllib.request.urlopen("http://chatango.com/login", data).headers
-        except Exception:
+        except urllib.error.HTTPError as error:
+            print("[PM][Auth]", error)
             return None
 
         for header, value in headers.items():
@@ -459,7 +473,7 @@ class PM:
     def _disconnect(self):
         self.connected = False
         self._sock.close()
-        self._sock = None
+        self._mgr.removePMConnection()
 
     def _updateStatus(self, user: User, online: str, timestamp: str, idle_duration: str = "0"):
         if online == "off":
@@ -508,7 +522,7 @@ class PM:
     ####
     # Received Commands
     ####
-    def _rcmd_OK(self, args: list[str]):
+    def _rcmd_OK(self, _args: list[str]):
         self._setWriteLock(False)
         self._sendCommand("wl")
         self._sendCommand("getblock")
@@ -550,7 +564,7 @@ class PM:
         if not self._updateStatus(user, args[2], args[1], args[1]):
             print("[PM][track] Unsupport format: ", *args)
 
-    def _rcmd_DENIED(self, args: list[str]):
+    def _rcmd_DENIED(self, _args: list[str]):
         self._disconnect()
         self._callEvent("onLoginFail")
 
@@ -564,7 +578,7 @@ class PM:
         fontColor, fontFace, fontSize = _parseFont(f)
 
         msg = Message(
-            time=float(msgtime),
+            timestamp=float(msgtime),
             user=user,
             body=body,
             raw=rawmsg,
@@ -614,15 +628,15 @@ class PM:
         self.status[user] = (last_on, False)
         self._callEvent("onPMContactOffline", user)
 
-    def _rcmd_kickingoff(self, args: list[str]):
+    def _rcmd_kickingoff(self, _args: list[str]):
         self.disconnect()
 
-    def _rcmd_toofast(self, args: list[str]):
+    def _rcmd_toofast(self, _args: list[str]):
         self.disconnect()
 
     def _rcmd_unblocked(self, args: list[str]):
-        user = User(args[0])
         """call when successfully unblocked"""
+        user = User(args[0])
         if user in self.blocklist:
             self.blocklist.remove(user)
             self._callEvent("onPMUnblock", user)
@@ -652,9 +666,8 @@ class PM:
 
     def deleteMessage(self, msg: Message):
         """chatango PM doesn't support deletion
-        
+
         method added for unified interface compatibility"""
-        pass
 
     def block(self, user: User):
         """block a person"""
@@ -749,6 +762,7 @@ class Room:
         self._mods: set[User] = set()
         self._mqueue: dict[str, Message] = dict()
         self.history: list[Message] = list()
+        self._i_log: list[Message] = list()
         self._userlist: list[User] = list()
         self._firstCommand = True
         self._connectAmmount = 0
@@ -761,8 +775,8 @@ class Room:
         self.msgs: dict[str, "Message"] = dict()
         self._wlock = False
         self.silent = False
-        self._banlist: dict[User, dict[str, str]] = dict()
-        self._unbanlist: dict[User, dict[str, str]] = dict()
+        self._banlist: dict[User, BanRecord] = dict()
+        self._unbanlist: dict[User, BanRecord] = dict()
 
         # Inited vars
         if self._mgr:
@@ -823,7 +837,11 @@ class Room:
     # Properties
     ####
     @property
-    def botname(self):
+    def botname(self) -> str:
+        # TODO Fix bot name implementation
+        # Notes:
+        #  on logout, name is set to anon
+        #  auto change name if named?
         if self._mgr.name and self._mgr.password:
             return self._mgr.name
         elif self._mgr.name and self._mgr.password is None:
@@ -831,20 +849,22 @@ class Room:
         elif self._mgr.name is None:
             return self._botname
 
-    @property
-    def userlist(self, mode = None, unique = None, memory = None):
+    def getUserlist(self, mode: Optional[Userlist_Mode] = None,
+                    unique: Optional[bool] = None, memory: Optional[int] = None):
         ul = []
-        if mode is None: mode = self._mgr._userlistMode
-        if unique is None: unique = self._mgr._userlistUnique
-        if memory is None: memory = self._mgr._userlistMemory
-        if mode is Userlist_Recent:
+        mode = mode or self._mgr.userlistMode
+        unique = unique or self._mgr.userlistUnique
+        memory = memory or self._mgr.userlistMemory
+        if mode is Userlist_Mode.Recent:
             ul = [x.user for x in self.history[-memory:]]
-        elif mode is Userlist_All:
+        elif mode is Userlist_Mode.All:
             ul = self._userlist
         if unique:
             return list(set(ul))
         else:
             return ul
+
+    userlist = property(getUserlist)
 
     @property
     def usernames(self):
@@ -859,7 +879,7 @@ class Room:
     @property
     def mods(self):
         return set(self._mods)
- 
+
     @property
     def modnames(self):
         return [x.name for x in self.mods]
@@ -868,8 +888,7 @@ class Room:
     def banlist(self): return list(self._banlist.keys())
 
     @property
-    def unbanlist(self): return [[record["target"], record["src"]] for record in self._unbanlist.values()]
-
+    def unbanlist(self): return [[r.target, r.src] for r in self._unbanlist.values()]
 
     ####
     # Feed/process
@@ -890,7 +909,7 @@ class Room:
     def _process(self, line: str):
         """
         Process a command string.
-        
+
         @param data: the command string
         """
         self._callEvent("onRaw", line)
@@ -907,7 +926,7 @@ class Room:
     ####
     def _rcmd_ok(self, args: list[str]):
         # if no name, join room as anon and no password
-        if args[2] == "N" and self._mgr.password == None and self._mgr.name == None:
+        if args[2] == "N" and self._mgr.password is None and self._mgr.name is None:
             n = args[4].rsplit('.', 1)[0]
             n = n[-4:]
             aid = args[1][0:8]
@@ -916,24 +935,23 @@ class Room:
             self._currentname = pid
             self.user._nameColor = n
         # if got name, join room as name and no password
-        elif args[2] == "N" and self._mgr.password == None:
+        elif args[2] == "N" and self._mgr.password is None:
             self._sendCommand("blogin", self._mgr.name)
             self._currentname = self._mgr.name
         # if got password but fail to login
-        elif args[2] != "M": #unsuccesful login
+        elif args[2] != "M":  # unsuccesful login
             self._callEvent("onLoginFail")
             self.disconnect()
         self.owner = User(args[0])
         self.uid = args[1]
-        self._aid = args[1][4:8]
         self._mods = set(map(lambda x: User(x.split(",")[0]), args[6].split(";")))
-        self._i_log: list[Message] = list()
+        self._i_log.clear()
 
-    def _rcmd_denied(self, args: list[str]):
+    def _rcmd_denied(self, _args: list[str]):
         self._disconnect()
         self._callEvent("onConnectFail")
 
-    def _rcmd_inited(self, args: list[str]):
+    def _rcmd_inited(self, _args: list[str]):
         self._sendCommand("g_participants", "start")
         self._sendCommand("getpremium", "1")
         self.requestBanlist()
@@ -944,7 +962,7 @@ class Room:
                 user = msg.user
                 self._callEvent("onHistoryMessage", user, msg)
                 self._addHistory(msg)
-            del self._i_log
+            self._i_log.clear()
         else:
             self._callEvent("onReconnect")
         self._connectAmmount += 1
@@ -953,8 +971,10 @@ class Room:
     def _rcmd_premium(self, args: list[str]):
         if float(args[1]) > time.time():
             self.premium = True
-            if self.user._mbg: self.setBgMode(1)
-            if self.user._mrec: self.setRecordingMode(1)
+            if self.user._mbg:
+                self.setBgMode(1)
+            if self.user._mrec:
+                self.setRecordingMode(1)
         else:
             self.premium = False
 
@@ -962,10 +982,10 @@ class Room:
         modnames = args
         mods = set(map(lambda x: User(x.split(",")[0]), modnames))
         premods = self._mods
-        for user in mods - premods: #modded
+        for user in mods - premods:  # modded
             self._mods.add(user)
             self._callEvent("onModAdd", user)
-        for user in premods - mods: #demodded
+        for user in premods - mods:  # demodded
             self._mods.remove(user)
             self._callEvent("onModRemove", user)
         self._callEvent("onModChange")
@@ -983,32 +1003,36 @@ class Room:
             if name == "#":
                 name = "!anon" + _getAnonId(n, puid)
         else:
-            if n: nameColor = _parseNameColor(n)
-            else: nameColor = None
+            if n:
+                nameColor = _parseNameColor(n)
+            else:
+                nameColor = None
         i = args[5]
         unid = args[4]
         user = User(name)
-        #Create an anonymous message and queue it because msgid is unknown.
-        if f: fontColor, fontFace, fontSize = _parseFont(f)
-        else: fontColor, fontFace, fontSize = None, None, None
+        # Create an anonymous message and queue it because msgid is unknown.
+        if f:
+            fontColor, fontFace, fontSize = _parseFont(f)
+        else:
+            fontColor, fontFace, fontSize = None, None, None
         msg = Message(
-            time = mtime,
-            user = user,
-            body = msg,
-            raw = rawmsg,
-            ip = ip,
-            nameColor = nameColor,
-            fontColor = fontColor,
-            fontFace = fontFace,
-            fontSize = fontSize,
-            unid = unid,
-            puid = puid,
-            room = self
+            timestamp=mtime,
+            user=user,
+            body=msg,
+            raw=rawmsg,
+            ip=ip,
+            nameColor=nameColor,
+            fontColor=fontColor,
+            fontFace=fontFace,
+            fontSize=fontSize,
+            unid=unid,
+            puid=puid,
+            room=self
         )
         self._mqueue[i] = msg
 
     def _rcmd_u(self, args: list[str]):
-        if msg:= self._mqueue.pop(args[0], False):
+        if msg := self._mqueue.pop(args[0], None):
             msg.attach(self, args[1])
             self._addHistory(msg)
             self._callEvent("onMessage", msg.user, msg)
@@ -1026,70 +1050,77 @@ class Room:
             if name == "#":
                 name = "!anon" + _getAnonId(n, puid)
         else:
-            if n: nameColor = _parseNameColor(n)
-            else: nameColor = None
-        i = args[5]
+            if n:
+                nameColor = _parseNameColor(n)
+            else:
+                nameColor = None
+        # i = args[5]
         unid = args[4]
         user = User(name)
-        #Create an anonymous message and queue it because msgid is unknown.
-        if f: fontColor, fontFace, fontSize = _parseFont(f)
-        else: fontColor, fontFace, fontSize = None, None, None
+        # Create an anonymous message and queue it because msgid is unknown.
+        if f:
+            fontColor, fontFace, fontSize = _parseFont(f)
+        else:
+            fontColor, fontFace, fontSize = None, None, None
         msg = Message(
-            time = mtime,
-            user = user,
-            body = msg,
-            raw = rawmsg,
-            ip = ip,
-            nameColor = nameColor,
-            fontColor = fontColor,
-            fontFace = fontFace,
-            fontSize = fontSize,
-            unid = unid,
-            puid = puid,
-            room = self
+            timestamp=mtime,
+            user=user,
+            body=msg,
+            raw=rawmsg,
+            ip=ip,
+            nameColor=nameColor,
+            fontColor=fontColor,
+            fontFace=fontFace,
+            fontSize=fontSize,
+            unid=unid,
+            puid=puid,
+            room=self
         )
         self._i_log.append(msg)
 
     def _rcmd_g_participants(self, args: list[str]):
-        args = ":".join(args)
-        args = args.split(";")
+        args = ":".join(args).split(";")
         for data in args:
             data = data.split(":")
             name = data[3].lower()
-            if name == "none": continue
+            if name == "none":
+                continue
             user = User(
-                name = name,
-                room = self
+                name=name,
+                room=self
             )
             user.addSessionId(self, data[0])
             self._userlist.append(user)
 
     def _rcmd_participant(self, args: list[str]):
         name = args[3].lower()
-        if name == "none": return
+        if name == "none":
+            return
         user = User(name)
         puid = args[2]
 
-        if args[0] == "0": #leave
+        if args[0] == "0":  # leave
             user.removeSessionId(self, args[1])
             self._userlist.remove(user)
-            if user not in self._userlist or not self._mgr._userlistEventUnique:
+            if user not in self._userlist or not self._mgr.userlistEventUnique:
                 self._callEvent("onLeave", user, puid)
-        else: #join
+        else:  # join
             user.addSessionId(self, args[1])
-            if user not in self._userlist: doEvent = True
-            else: doEvent = False
+            if user not in self._userlist:
+                doEvent = True
+            else:
+                doEvent = False
             self._userlist.append(user)
-            if doEvent or not self._mgr._userlistEventUnique:
+            if doEvent or not self._mgr.userlistEventUnique:
                 self._callEvent("onJoin", user, puid)
 
-    def _rcmd_show_fw(self, args: list[str]):
+    def _rcmd_show_fw(self, _args: list[str]):
         self._callEvent("onFloodWarning")
 
-    def _rcmd_show_tb(self, args: list[str]):
+    def _rcmd_show_tb(self, _args: list[str]):
         self._callEvent("onFloodBan")
 
-    def _rcmd_tb(self, args: list[str]):
+    def _rcmd_tb(self, _args: list[str]):
         self._callEvent("onFloodBanRepeat")
 
     def _rcmd_delete(self, args: list[str]):
@@ -1112,55 +1143,50 @@ class Room:
         self._banlist = dict()
         sections = ":".join(args).split(";")
         for section in sections:
-            params = section.split(":")
-            if len(params) != 5: continue
-            if params[2] == "": continue
-            user = User(params[2])
-            self._banlist[user] = {
-                "unid":params[0],
-                "ip":params[1],
-                "target":user,
-                "time":float(params[3]),
-                "src":User(params[4])
-            }
+            p = section.split(":")
+            if len(p) != 5:
+                continue
+            if p[2] == "":
+                continue
+            user = User(p[2])
+            self._banlist[user] = BanRecord(p[0], p[1], user, float(p[3]), User(p[4]))
         self._callEvent("onBanlistUpdate")
 
     def _rcmd_unblocklist(self, args: list[str]):
         self._unbanlist = dict()
         sections = ":".join(args).split(";")
         for section in sections:
-            params = section.split(":")
-            if len(params) != 5: continue
-            if params[2] == "": continue
-            user = User(params[2])
-            self._unbanlist[user] = {
-                "unid":params[0],
-                "ip":params[1],
-                "target":user,
-                "time":float(params[3]),
-                "src":User(params[4])
-            }
+            p = section.split(":")
+            if len(p) != 5:
+                continue
+            if p[2] == "":
+                continue
+            user = User(p[2])
+            self._unbanlist[user] = BanRecord(p[0], p[1], user, float(p[3]), User(p[4]))
         self._callEvent("onUnBanlistUpdate")
 
     def _rcmd_blocked(self, args: list[str]):
-        if args[2] == "": return
+        if args[2] == "":
+            return
         target = User(args[2])
         user = User(args[3])
-        self._banlist[target] = {"unid":args[0], "ip":args[1], "target":target, "time":float(args[4]), "src":user}
+        self._banlist[target] = BanRecord(args[0], args[1], target, float(args[4]), user)
+
         self._callEvent("onBan", user, target)
 
     def _rcmd_unblocked(self, args: list[str]):
-        if args[2] == "": return
+        if args[2] == "":
+            return
         target = User(args[2])
-        user=User(args[3])
+        user = User(args[3])
         del self._banlist[target]
-        self._unbanlist[user] = {"unid":args[0], "ip":args[1], "target":target, "time":float(args[4]), "src":user}
+        self._unbanlist[user] = BanRecord(args[0], args[1], target, float(args[4]), user)
         self._callEvent("onUnban", user, target)
 
     ####
     # Commands
     ####
-    def login(self, NAME: str, PASS: str|None = None):
+    def login(self, NAME: str, PASS: Optional[str] = None):
         """login as a user or set a name in room"""
         if PASS:
             self._sendCommand("blogin", NAME, PASS)
@@ -1193,34 +1219,35 @@ class Room:
 
         @param msg: message
         """
-        if msg==None:
-            return
         msg = msg.rstrip()
         if not html:
             msg = msg.replace("<", "&lt;").replace(">", "&gt;")
         if len(msg) > self._mgr._maxLength:
-            if self._mgr._tooBigMessage == BigMessage_Cut:
-                self.message(msg[:self._mgr._maxLength], html = html)
-            elif self._mgr._tooBigMessage == BigMessage_Multiple:
+            if self._mgr.tooBigMessage == BigMessage_Mode.Cut:
+                self.message(msg[:self._mgr._maxLength], html=html)
+            elif self._mgr.tooBigMessage == BigMessage_Mode.Multiple:
+                # TODO: Improve method of spliting and sending message
                 while len(msg) > 0:
                     sect = msg[:self._mgr._maxLength]
                     msg = msg[self._mgr._maxLength:]
-                    self.message(sect, html = html)
+                    self.message(sect, html=html)
             return
         msg = "<n" + self.user.nameColor + "/>" + msg
-        if self._currentname != None and not self._currentname.startswith("!anon"):
-            font_properties = "<f x%0.2i%s=\"%s\">" %(self.user.fontSize, self.user.fontColor, self.user.fontFace)
+        if self._currentname is not None and not self._currentname.startswith("!anon"):
+            font_properties = "<f x%0.2i%s=\"%s\">" % (self.user.fontSize,
+                                                       self.user.fontColor,
+                                                       self.user.fontFace)
             if "\n" in msg:
-                msg.replace("\n", "</f></p><p>%s" %(font_properties))
+                msg.replace("\n", "</f></p><p>%s" % (font_properties))
             msg = font_properties + msg
-        msg.replace("~","&#126;")
+        msg.replace("~", "&#126;")
         self.rawMessage(msg)
 
-    def setBgMode(self, mode: bool):
+    def setBgMode(self, mode: int):
         """turn on/off bg"""
         self._sendCommand("msgbg", str(mode))
 
-    def setRecordingMode(self, mode: bool):
+    def setRecordingMode(self, mode: int):
         """turn on/off recording"""
         self._sendCommand("msgmedia", str(mode))
 
@@ -1230,7 +1257,7 @@ class Room:
 
         @param user: User to mod.
         """
-        if self.getLevel(User(self.currentname)) == 2:
+        if self.getLevel(User(self.botname)) == 2:
             self._sendCommand("addmod", user.name)
 
     def removeMod(self, user: User):
@@ -1239,7 +1266,7 @@ class Room:
 
         @param user: User to demod.
         """
-        if self.getLevel(User(self.currentname)) == 2:
+        if self.getLevel(User(self.botname)) == 2:
             self._sendCommand("removemod", user.name)
 
     def flag(self, message: Message):
@@ -1248,7 +1275,8 @@ class Room:
 
         @param message: message to flag
         """
-        self._sendCommand("g_flag", message.msgid)
+        if message.msgid:
+            self._sendCommand("g_flag", message.msgid)
 
     def flagUser(self, user: User) -> bool:
         """
@@ -1270,7 +1298,7 @@ class Room:
 
         @param message: message to delete
         """
-        if self.getLevel(self.user) > 0:
+        if message.msgid and self.getLevel(self.user) > 0:
             self._sendCommand("delmsg", message.msgid)
 
     def deleteUser(self, user: User):
@@ -1281,7 +1309,7 @@ class Room:
         """
         if self.getLevel(self.user) > 0:
             msg = self.getLastMessage(user)
-            if msg:
+            if msg and msg.msgid:
                 self._sendCommand("delmsg", msg.msgid)
             return True
         return False
@@ -1307,8 +1335,10 @@ class Room:
         if self.getLevel(self.user) > 0:
             msg = self.getLastMessage(user)
             if msg:
-                if msg.user.name[0] in ["!","#"]:self.rawClearUser(msg.unid, msg.ip,"")
-                else:self.rawClearUser(msg.unid,msg.ip,msg.user.name)
+                if msg.user.name[0] in ["!", "#"]:
+                    self.rawClearUser(msg.unid, msg.ip, "")
+                else:
+                    self.rawClearUser(msg.unid, msg.ip, msg.user.name)
                 return True
         return False
 
@@ -1380,7 +1410,7 @@ class Room:
         """
         rec = self._getBanRecord(user)
         if rec:
-            self.rawUnban(rec["target"].name, rec["ip"], rec["unid"])
+            self.rawUnban(rec.target.name, rec.ip, rec.unid)
             return True
         else:
             return False
@@ -1405,7 +1435,7 @@ class Room:
 
     def _setWriteLock(self, lock: bool):
         self._wlock = lock
-        if self._wlock == False:
+        if self._wlock is False:
             self._write(self._wlockbuf)
             self._wlockbuf = b""
 
@@ -1425,11 +1455,13 @@ class Room:
 
     def getLevel(self, user: User):
         """get the level of user in a room"""
-        if user == self.owner: return 2
-        if user.name in self.modnames: return 1
+        if user == self.owner:
+            return 2
+        if user.name in self.modnames:
+            return 1
         return 0
 
-    def getLastMessage(self, user: User|None = None):
+    def getLastMessage(self, user: Optional[User] = None):
         """get last message said by user in a room"""
         if user:
             try:
@@ -1450,18 +1482,27 @@ class Room:
 
     def findUser(self, name: str):
         """check if user is in the room
-        
+
         return User(name) if name in room else None"""
         name = name.lower()
-        ul = self._getUserlist()
+        ul = self.getUserlist()
         udi = dict(zip([u.name for u in ul], ul))
+
+        # exact match, bail early
+        if (user := udi.get(name)):
+            return user
+
+        # TODO: look into refactoring for clarity
         cname = None
         for n in udi.keys():
             if name in n:
-                if cname: return None #ambiguous!!
+                if cname:
+                    return None  # Multiple user with the same name
                 cname = n
-        if cname: return udi[cname]
-        else: return None
+        if cname:
+            return udi[cname]
+        else:
+            return None
 
     ####
     # History
@@ -1472,10 +1513,13 @@ class Room:
 
         @param msg: message
         """
+        # TODO: look into changing self.history from list to deque
         self.history.append(msg)
         if len(self.history) > self._mgr._maxHistoryLength:
             rest, self.history = self.history[:-self._mgr._maxHistoryLength], self.history[-self._mgr._maxHistoryLength:]
-            for msg in rest: msg.detach()
+            for msg in rest:
+                msg.detach()
+
 
 ################################################################
 # RoomManager class
@@ -1487,34 +1531,35 @@ class RoomManager:
     ####
     _Room = Room
     _PM = PM
-    _TimerResolution = 0.2 #at least x times per second
+    _TimerResolution = 0.2  # at least x times per second
     pingDelay = 20
-    _userlistMode = Userlist_Recent
-    _userlistUnique = True
-    _userlistMemory = 50
-    _userlistEventUnique = False
-    _tooBigMessage = BigMessage_Multiple
+    userlistMode = Userlist_Mode.Recent
+    userlistUnique = True
+    userlistMemory = 50
+    userlistEventUnique = False
+    tooBigMessage = BigMessage_Mode.Multiple
     _maxLength = 1800
     _maxHistoryLength = 150
 
     ####
     # Init
     ####
-    def __init__(self, name: str|None = None, password: str|None = None, pm: bool = True):
+    def __init__(self, name: Optional[str] = None, password: Optional[str] = None,
+                 pm: bool = True):
         self._name = name
         self._password = password
         self._running = False
         self._tasks: set[Task] = set()
         self._rooms: dict[str, Room] = dict()
         if self._password and pm:
-            self._pm = self._PM(mgr = self)
+            self._pm = self._PM(mgr=self)
         else:
             self._pm = None
 
     ####
     # Join/leave
     ####
-    def joinRoom(self, room: str, uid: str | None = None) -> Room:
+    def joinRoom(self, room: str, uid: Optional[str] = None) -> Room:
         """
         Join a room or return None if already joined.
 
@@ -1522,9 +1567,8 @@ class RoomManager:
         """
         room = room.lower()
         if (con := self._rooms.get(room)) is None:
-                con = self._Room(room, uid, mgr = self)
+            con = self._Room(room, uid, mgr=self)
         return con
-
 
     def leaveRoom(self, room: str):
         """
@@ -1568,7 +1612,6 @@ class RoomManager:
     ####
     def onInit(self):
         """Called on init."""
-        pass
 
     def safePrint(self, text: str):
         """Use this to safely print text with unicode"""
@@ -1582,50 +1625,43 @@ class RoomManager:
     def onConnect(self, room: Room):
         """
         Called when connected to the room.
-        
+
         @param room: room where the event occured
         """
-        pass
 
     def onReconnect(self, room: Room):
         """
         Called when reconnected to the room.
-        
         @param room: room where the event occured
         """
-        pass
 
     def onConnectFail(self, room: Room):
         """
         Called when the connection failed.
-        
+
         @param room: room where the event occured
         """
-        pass
 
     def onDisconnect(self, room: Room):
         """
         Called when the client gets disconnected.
-        
+
         @param room: room where the event occured
         """
-        pass
 
     def onLoginFail(self, room: Room):
         """
         Called on login failure, disconnects after.
-        
+
         @param room: room where the event occured
         """
-        pass
 
     def onFloodBan(self, room: Room):
         """
         Called when either flood banned or flagged.
-        
+
         @param room: room where the event occured
         """
-        pass
 
     def onFloodBanRepeat(self, room: Room):
         """
@@ -1633,7 +1669,6 @@ class RoomManager:
 
         @param room: room where the event occured
         """
-        pass
 
     def onFloodWarning(self, room: Room):
         """
@@ -1641,7 +1676,6 @@ class RoomManager:
 
         @param room: room where the event occured
         """
-        pass
 
     def onMessageDelete(self, room: Room, user: User, message: Message):
         """
@@ -1651,7 +1685,6 @@ class RoomManager:
         @param user: owner of deleted message
         @param message: message that got deleted
         """
-        pass
 
     def onModChange(self, room: Room):
         """
@@ -1659,7 +1692,6 @@ class RoomManager:
 
         @param room: room where the event occured
         """
-        pass
 
     def onModAdd(self, room: Room, user: User):
         """
@@ -1667,7 +1699,6 @@ class RoomManager:
 
         @param room: room where the event occured
         """
-        pass
 
     def onModRemove(self, room: Room, user: User):
         """
@@ -1675,7 +1706,6 @@ class RoomManager:
 
         @param room: room where the event occured
         """
-        pass
 
     def onMessage(self, room: Room, user: User, message: Message):
         """
@@ -1685,7 +1715,6 @@ class RoomManager:
         @param user: owner of message
         @param message: received message
         """
-        pass
 
     def onHistoryMessage(self, room: Room, user: User, message: Message):
         """
@@ -1695,7 +1724,6 @@ class RoomManager:
         @param user: owner of message
         @param message: the message that got added
         """
-        pass
 
     def onJoin(self, room: Room, user: User, puid: str):
         """
@@ -1705,7 +1733,6 @@ class RoomManager:
         @param user: the user that has joined
         @param puid: the personal unique id for the user
         """
-        pass
 
     def onLeave(self, room: Room, user: User, puid: str):
         """
@@ -1715,7 +1742,6 @@ class RoomManager:
         @param user: the user that has left
         @param puid: the personal unique id for the user
         """
-        pass
 
     def onRaw(self, room: Room, raw: str):
         """
@@ -1724,7 +1750,6 @@ class RoomManager:
         @param room: room where the event occured
         @param raw: raw command data
         """
-        pass
 
     def onPing(self, room: Room):
         """
@@ -1732,7 +1757,6 @@ class RoomManager:
 
         @param room: room where the event occured
         """
-        pass
 
     def onUserCountChange(self, room: Room):
         """
@@ -1740,7 +1764,6 @@ class RoomManager:
 
         @param room: room where the event occured
         """
-        pass
 
     def onBan(self, room: Room, user: User, target: User):
         """
@@ -1750,8 +1773,7 @@ class RoomManager:
         @param user: user that banned someone
         @param target: user that got banned
         """
-        pass
- 
+
     def onUnban(self, room: Room, user: User, target: User):
         """
         Called when a user gets unbanned.
@@ -1760,7 +1782,6 @@ class RoomManager:
         @param user: user that unbanned someone
         @param target: user that got unbanned
         """
-        pass
 
     def onBanlistUpdate(self, room: Room):
         """
@@ -1768,7 +1789,6 @@ class RoomManager:
 
         @param room: room where the event occured
         """
-        pass
 
     def onUnBanlistUpdate(self, room: Room):
         """
@@ -1776,135 +1796,121 @@ class RoomManager:
 
         @param room: room where the event occured
         """
-        pass
 
     def onPMConnect(self, pm: PM):
         """
         Called when connected to the pm
-        
+
         @param pm: the pm
         """
-        pass
 
     def onPMDisconnect(self, pm: PM):
         """
         Called when disconnected from the pm
-        
+
         @param pm: the pm
         """
-        pass
 
     def onPMPing(self, pm: PM):
         """
         Called when sending a ping to the pm
-        
+
         @param pm: the pm
         """
-        pass
 
     def onPMMessage(self, pm: PM, user: User, message: Message):
         """
         Called when a message is received
-        
+
         @param pm: the pm
         @param user: owner of message
         @param message: received message
         """
-        pass
 
     def onPMOfflineMessage(self, pm: PM, user: User, body: str):
         """
         Called when connected if a message is received while offline
-        
+
         @param pm: the pm
         @param user: owner of message
         @param message: received message
         """
-        pass
 
     def onPMContactlistReceive(self, pm: PM):
         """
         Called when the contact list is received
-        
+
         @param pm: the pm
         """
-        pass
 
     def onPMBlocklistReceive(self, pm: PM):
         """
         Called when the block list is received
-        
+
         @param pm: the pm
         """
-        pass
 
     def onPMContactAdd(self, pm: PM, user: User):
         """
         Called when the contact added message is received
-        
+
         @param pm: the pm
         @param user: the user that gotten added
         """
-        pass
 
     def onPMContactRemove(self, pm: PM, user: User):
         """
         Called when the contact remove message is received
-        
+
         @param pm: the pm
         @param user: the user that gotten remove
         """
-        pass
 
     def onPMBlock(self, pm: PM, user: User):
         """
         Called when successfully block a user
-        
+
         @param pm: the pm
         @param user: the user that gotten block
         """
-        pass
 
     def onPMUnblock(self, pm: PM, user: User):
         """
         Called when successfully unblock a user
-        
+
         @param pm: the pm
         @param user: the user that gotten unblock
         """
-        pass
 
     def onPMContactOnline(self, pm: PM, user: User):
         """
         Called when a user from the contact come online
-        
+
         @param pm: the pm
         @param user: the user that came online
         """
-        pass
 
     def onPMContactOffline(self, pm: PM, user: User):
         """
         Called when a user from the contact go offline
-        
+
         @param pm: the pm
         @param user: the user that went offline
         """
-        pass
 
-    def onEventCalled(self, room: Room|PM, evt: str, *args: ..., **kw: ...):
+    def onEventCalled(self, room: Room | PM, evt: str, *args: ..., **kw: ...):
         """
         Called on every room-based event.
 
         @param room: room where the event occured
         @param evt: the event
         """
-        pass
 
     ####
     # Deferring
     ####
-    def deferToThread(self, callback: Callable[..., None], func: Callable[..., None], *args: ..., **kw: ...):
+    def deferToThread(self, cb: Callable[..., None], func: Callable[..., None],
+                      *args: ..., **kw: ...):
         """
         Defer a function to a thread and callback the return value.
 
@@ -1912,10 +1918,10 @@ class RoomManager:
         @param cbargs: arguments to get supplied to the callback
         @param func: function to call
         """
-        def f(func: Callable[..., None], callback: Callable[..., None], *args: ..., **kw: ...):
+        def f(func: Callable[..., None], cb: Callable[..., None], *args: ..., **kw: ...):
             ret = func(*args, **kw)
-            self.setTimeout(0, callback, ret)
-        threading._start_new_thread(f, (func, callback) + args, kw)
+            self.setTimeout(0, cb, ret)
+        threading.Thread(target=f, args=(func, cb, *args), kwargs=kw).start()
 
     ####
     # Scheduling
@@ -1931,7 +1937,8 @@ class RoomManager:
                 else:
                     self._tasks.remove(task)
 
-    def setTimeout(self, timeout: int, func: Callable[..., None], *args: ..., **kw: ...) -> Task:
+    def setTimeout(self, timeout: int, func: Callable[..., None],
+                   *args: ..., **kw: ...) -> Task:
         """
         Call a function after at least timeout seconds with specified arguments.
 
@@ -1941,17 +1948,18 @@ class RoomManager:
         @return: object representing the task
         """
         task = Task(
-            mgr = self,
-            timeout = timeout,
-            func = func,
-            isInterval = False,
-            args = args,
-            kw = kw
+            mgr=self,
+            timeout=timeout,
+            func=func,
+            isInterval=False,
+            args=args,
+            kw=kw
         )
         self._tasks.add(task)
         return task
 
-    def setInterval(self, timeout: int, func: Callable[..., None], *args: Any, **kw: Any) -> Task:
+    def setInterval(self, timeout: int, func: Callable[..., None],
+                    *args: Any, **kw: Any) -> Task:
         """
         Call a function at least every timeout seconds with specified arguments.
 
@@ -1961,12 +1969,12 @@ class RoomManager:
         @return: object representing the task
         """
         task = Task(
-            mgr = self,
-            timeout = timeout,
-            func = func,
-            isInterval = True,
-            args = args,
-            kw = kw
+            mgr=self,
+            timeout=timeout,
+            func=func,
+            isInterval=True,
+            args=args,
+            kw=kw
         )
         self._tasks.add(task)
         return task
@@ -1992,11 +2000,17 @@ class RoomManager:
     def removeConnection(self, room: Room):
         del self._rooms[room.name]
 
+    def addPMConnection(self, pm: PM):
+        self._pm = pm
+
+    def removePMConnection(self):
+        self._pm = None
+
     def getConnections(self):
         li = list(self._rooms.values())
         if self._pm:
             li.append(self._pm)
-        return [c for c in li if c._sock != None]
+        return li
 
     ####
     # Main
@@ -2008,28 +2022,30 @@ class RoomManager:
             conns = self.getConnections()
             socks = [x._sock for x in conns]
             wsocks = [x._sock for x in conns if x._wbuf != b""]
-            rd, wr, sp = select.select(socks, wsocks, [], self._TimerResolution)
+            rd, wr, _ = select.select(socks, wsocks, [], self._TimerResolution)
             for sock in rd:
                 con = [c for c in conns if c._sock == sock][0]
                 try:
                     data = sock.recv(1024)
-                    if(len(data) > 0):
+                    if (len(data) > 0):
                         con._feed(data)
                     else:
                         con.disconnect()
                 except socket.error as e:
-                    pass
+                    print("[RoomManager][Main Loop] Socket error", e)
             for sock in wr:
                 con = [c for c in conns if c._sock == sock][0]
                 try:
                     size = sock.send(con._wbuf)
                     con._wbuf = con._wbuf[size:]
                 except socket.error as e:
-                    pass
+                    print("[RoomManager][Main Loop] Socket error", e)
             self._tick()
 
     @classmethod
-    def easy_start(cls, rooms: list[str] = None, name: str = None, password: str = None, pm: bool = True): # type: ignore
+    def easy_start(cls, rooms: Optional[list[str]] = None,
+                   name: Optional[str] = None, password: Optional[str] = None,
+                   pm: bool = True):
         """
         Prompts the user for missing info, then starts.
 
@@ -2037,17 +2053,26 @@ class RoomManager:
         @param name: name to join as ("" = None, None = unspecified)
         @param password: password to join with ("" = None, None = unspecified)
         """
-        if rooms is None: rooms = str(input("Room names separated by semicolons: ")).split(";")
-        if len(rooms) == 1 and rooms[0] == "": rooms = []
-        if name is None: name = str(input("User name: "))
-        if name == "": name = None
-        if password is None: password = str(input("User password: "))
-        if password == "": password = None
-        self = cls(name, password, pm = pm)
+        if rooms is None:
+            rooms = str(input("Room names separated by semicolons: ")).split(";")
+        if len(rooms) == 1 and rooms[0] == "":
+            rooms = []
+
+        if name is None:
+            name = str(input("User name: "))
+        if name == "":
+            name = None
+
+        if password is None:
+            password = str(input("User password: "))
+        if password == "":
+            password = None
+
+        self = cls(name, password, pm=pm)
         if rooms:
             for room in rooms:
                 self.joinRoom(room)
-        
+
         self.main()
 
     def stop(self):
@@ -2106,36 +2131,50 @@ class RoomManager:
         """
         self.user._fontFace = face
 
-    def setFontSize(self, size: str):
+    def setFontSize(self, size: int):
         """
         Set font size.
 
         @param size: the font size (limited: 9 to 22)
         """
-        if size < 9: size = 9
-        if size > 22: size = 22
+        if size < 9:
+            size = 9
+        if size > 22:
+            size = 22
         self.user._fontSize = str(size)
 
     @classmethod
-    def secure_easy_start(cls, rooms:list[str] = None, name: str = None, password: str = None, pm: bool = True): # type: ignore
+    def secure_easy_start(cls, rooms: Optional[list[str]] = None,
+                          name: Optional[str] = None, password: Optional[str] = None,
+                          pm: bool = True):
         """
         Prompts the user for missing info, then starts,
         while avoiding storing the password within self
 
-        [WARNING] not audited by third party but I believe the password shouldn't be accessable within bot instance
+        [WARNING] not audited by third party but I believe the password
+                  shouldn't be accessable within bot instance
 
         @param room: rooms to join
         @param name: name to join as ("" = None, None = unspecified)
         @param password: password to join with ("" = None, None = unspecified)
         """
         print("Starting ch.RoomManager with secure_easy_start")
-        print("[WARNING] not audited by third party but I believe the password shouldn't be accessable within bot instance")
-        if rooms is None: rooms = str(input("Room names separated by semicolons: ")).split(";")
-        if len(rooms) == 1 and rooms[0] == "": rooms = []
-        if name is None: name = str(input("User name: "))
-        if name == "": name = None
-        if password is None: password = str(input("User password: "))
-        if password == "": password = None
+        print("[WARNING] not audited by third party but I believe the password"
+              " shouldn't be accessable within bot instance")
+        if rooms is None:
+            rooms = str(input("Room names separated by semicolons: ")).split(";")
+        if len(rooms) == 1 and rooms[0] == "":
+            rooms = []
+
+        if name is None:
+            name = str(input("User name: "))
+        if name == "":
+            name = None
+
+        if password is None:
+            password = str(input("User password: "))
+        if password == "":
+            password = None
 
         class RoomSecure(Room):
             def _auth(self):
@@ -2152,29 +2191,29 @@ class RoomManager:
 
         class PMSecure(PM):
             def _auth(self):
-                auid = self._getAuth(name, password)
-                if auid == None:
+                auid = self._getAuth(name, password)  # type: ignore
+                if auid is None:
                     self._callEvent("onLoginFail")
                     return False
                 self._sendCommand("tlogin", auid, "2")
                 self._setWriteLock(True)
                 return True
 
-
         class RoomManagerSecurer(RoomManager):
             _Room = RoomSecure
             _PM = PMSecure
-            def __init__(self, pm = True):
+
+            def __init__(self, pm: bool = True):  # pylint: disable=super-init-not-called
                 self._name = name
                 self._running = False
                 self._tasks = set()
                 self._rooms = dict()
                 if password and pm:
-                    self._pm = self._PM(mgr = self)
+                    self._pm = self._PM(mgr=self)
                 else:
                     self._pm = None
 
-        self = RoomManagerSecurer(pm = pm)
+        self = RoomManagerSecurer(pm=pm)
         if rooms:
             for room in rooms:
                 self.joinRoom(room)
