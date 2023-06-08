@@ -1249,15 +1249,13 @@ class Room:
         msg = msg.rstrip()
         if not html:
             msg = msg.replace("<", "&lt;").replace(">", "&gt;")
+
         if len(msg) > self._mgr.maxLength:
             if self._mgr.tooBigMessage == BigMessage_Mode.Cut:
                 self.message(msg[:self._mgr.maxLength], html=html)
             elif self._mgr.tooBigMessage == BigMessage_Mode.Multiple:
-                # TODO: Improve method of spliting and sending message
-                while len(msg) > 0:
-                    sect = msg[:self._mgr.maxLength]
-                    msg = msg[self._mgr.maxLength:]
-                    self.message(sect, html=html)
+                for index in range(0, len(msg), self._mgr.maxLength):
+                    self.message(msg[index:index+self._mgr.maxLength], html=html)
             return
 
         if self._bot_name.startswith("!anon"):
