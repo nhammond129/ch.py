@@ -1517,23 +1517,23 @@ class Room:
 
         return User(name) if name in room else None"""
         name = name.lower()
-        ul = self.getUserlist()
-        udi = dict(zip([u.name for u in ul], ul))
+
+        # To avoid a false ambiguous result,
+        # We need to check through the whole userlist
+
+        # Since we are looping though the whole userlist
+        # let's make it into a dict and limit it to users that contain the provided name
+        users = {user.name: user for user in self.getUserlist() if name in user.name}
 
         # exact match, bail early
-        if (user := udi.get(name)):
+        if (user := users.get(name)):
             return user
 
-        # TODO: look into refactoring for clarity
-        cname = None
-        for n in udi.keys():
-            if name in n:
-                if cname:
-                    return None  # Multiple user with the same name
-                cname = n
-        if cname:
-            return udi[cname]
+        if len(users) == 1:
+            name, user = users.popitem()
+            return user
         else:
+            # Multiple user with the same name or no user with the name
             return None
 
     ####
