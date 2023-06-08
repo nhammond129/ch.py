@@ -37,7 +37,7 @@
 # Imports
 ################################################################
 from __future__ import annotations
-from typing import Any, Self, Callable, Optional
+from typing import Any, Protocol, Self, Callable, Optional
 import typing
 import enum
 
@@ -374,6 +374,21 @@ class Task:
         self.mgr.removeTask(self)
 
 
+class Conn(Protocol):
+    """
+    A Class that describes the required members and functions required
+    of a Conn object like Room and PM
+    """
+    sock: socket.socket
+    wbuf: bytes
+
+    def feed(self, data: bytes):
+        ...
+
+    def disconnect(self):
+        ...
+
+
 ################################################################
 # PM class
 ################################################################
@@ -409,7 +424,7 @@ class PM:
         self._mgr = mgr
         self._wlock = False
         self._firstCommand = True
-        self._wbuf = b""
+        self.wbuf = b""
         self._wlockbuf = b""
         self._rbuf = b""
         self._pingTask = None
@@ -419,12 +434,12 @@ class PM:
     # Connections
     ####
     def _connect(self):
-        self._wbuf = b""
+        self.wbuf = b""
         self._firstCommand = True
         if self._auth():
-            self._sock = socket.socket()
-            self._sock.setblocking(False)
-            self._sock.connect_ex((self.PMHost, self.PMPort))
+            self.sock = socket.socket()
+            self.sock.setblocking(False)
+            self.sock.connect_ex((self.PMHost, self.PMPort))
 
             self._pingTask = self._mgr.setInterval(self._mgr.pingDelay, self.ping)
             self.connected = True
@@ -472,7 +487,7 @@ class PM:
 
     def _disconnect(self):
         self.connected = False
-        self._sock.close()
+        self.sock.close()
         self._mgr.removePMConnection()
 
     def _updateStatus(self, user: User, online: str, timestamp: str, idle_duration: str = "0"):
@@ -492,7 +507,7 @@ class PM:
     ####
     # Feed
     ####
-    def _feed(self, data: bytes):
+    def feed(self, data: bytes):
         """
         Feed data to the connection.
 
@@ -712,7 +727,7 @@ class PM:
         if self._wlock:
             self._wlockbuf += data
         else:
-            self._wbuf += data
+            self.wbuf += data
 
     def _setWriteLock(self, lock: bool):
         self._wlock = lock
@@ -756,7 +771,7 @@ class Room:
         self._provided_uid = uid
         self.uid: str = self._provided_uid or _genUid()
         self._rbuf = b""
-        self._wbuf = b""
+        self.wbuf = b""
         self._wlockbuf = b""
         self.owner: User
         self._mods: set[User] = set()
@@ -789,12 +804,12 @@ class Room:
     ####
     def _connect(self):
         """Connect to the server."""
-        self._sock = socket.socket()
-        self._sock.setblocking(False)
-        self._sock.connect_ex((self._server, self._port))
+        self.sock = socket.socket()
+        self.sock.setblocking(False)
+        self.sock.connect_ex((self._server, self._port))
         self._mgr.addConnection(self)
         self._firstCommand = True
-        self._wbuf = b""
+        self.wbuf = b""
         self._auth()
         self.pingTask: Task = self._mgr.setInterval(self._mgr.pingDelay, self.ping)
         self.connected = True
@@ -820,7 +835,7 @@ class Room:
             user.clearSessionIds(self)
         self._userlist = list()
         self.pingTask.cancel()
-        self._sock.close()
+        self.sock.close()
         self._mgr.removeConnection(self)
 
     def _auth(self):
@@ -885,7 +900,7 @@ class Room:
     ####
     # Feed/process
     ####
-    def _feed(self, data: bytes):
+    def feed(self, data: bytes):
         """
         Feed data to the connection.
 
@@ -1450,7 +1465,7 @@ class Room:
         if self._wlock:
             self._wlockbuf += data
         else:
-            self._wbuf += data
+            self.wbuf += data
 
     def _setWriteLock(self, lock: bool):
         self._wlock = lock
@@ -2024,7 +2039,7 @@ class RoomManager:
         self._pm = None
 
     def getConnections(self):
-        li = list(self._rooms.values())
+        li: list[Conn] = list(self._rooms.values())
         if self._pm:
             li.append(self._pm)
         return li
@@ -2037,24 +2052,24 @@ class RoomManager:
         self._running = True
         while self._running:
             conns = self.getConnections()
-            socks = [x._sock for x in conns]
-            wsocks = [x._sock for x in conns if x._wbuf != b""]
+            socks = [x.sock for x in conns]
+            wsocks = [x.sock for x in conns if x.wbuf != b""]
             rd, wr, _ = select.select(socks, wsocks, [], self._TimerResolution)
             for sock in rd:
-                con = [c for c in conns if c._sock == sock][0]
+                con = [c for c in conns if c.sock == sock][0]
                 try:
                     data = sock.recv(1024)
                     if (len(data) > 0):
-                        con._feed(data)
+                        con.feed(data)
                     else:
                         con.disconnect()
                 except socket.error as e:
                     print("[RoomManager][Main Loop] Socket error", e)
             for sock in wr:
-                con = [c for c in conns if c._sock == sock][0]
+                con = [c for c in conns if c.sock == sock][0]
                 try:
-                    size = sock.send(con._wbuf)
-                    con._wbuf = con._wbuf[size:]
+                    size = sock.send(con.wbuf)
+                    con.wbuf = con.wbuf[size:]
                 except socket.error as e:
                     print("[RoomManager][Main Loop] Socket error", e)
             self._tick()
