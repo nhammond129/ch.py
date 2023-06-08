@@ -769,8 +769,10 @@ class Room:
         self.premium = False
         self.usercount = 0
         self.pingTask: Task
-        self._botname = None
-        self._currentname = None
+        self._bot_name: str = ""
+        self._login_name = ""
+        self._anon_name = ""
+        self._anon_n = ""
         self.users: dict[str, User] = dict()
         self.msgs: dict[str, "Message"] = dict()
         self._wlock = False
@@ -826,7 +828,6 @@ class Room:
         # login as name with password
         if self._mgr.name and self._mgr.password:
             self._sendCommand("bauth", self.name, self.uid, self._mgr.name, self._mgr.password)
-            self._currentname = self._mgr.name
         # login as anon
         else:
             self._sendCommand("bauth", self.name, "", "", "")
@@ -838,16 +839,7 @@ class Room:
     ####
     @property
     def botname(self) -> str:
-        # TODO Fix bot name implementation
-        # Notes:
-        #  on logout, name is set to anon
-        #  auto change name if named?
-        if self._mgr.name and self._mgr.password:
-            return self._mgr.name
-        elif self._mgr.name and self._mgr.password is None:
-            return "#" + self._mgr.name
-        elif self._mgr.name is None:
-            return self._botname
+        return self._bot_name
 
     def getUserlist(self, mode: Optional[Userlist_Mode] = None,
                     unique: Optional[bool] = None, memory: Optional[int] = None):
@@ -925,27 +917,41 @@ class Room:
     # Received Commands
     ####
     def _rcmd_ok(self, args: list[str]):
-        # if no name, join room as anon and no password
+        # Figure out self anon id in the current room and store it
+        n = args[4].rsplit('.', 1)[0]
+        n = n[-4:]
+        aid = args[1][0:8]
+        pid = "!anon" + _getAnonId(n, aid)
+        self._anon_name = pid
+        self._bot_name = pid
+        self._anon_n = n
+
+        # if no name and no password is provided, join room as anon
         if args[2] == "N" and self._mgr.password is None and self._mgr.name is None:
-            n = args[4].rsplit('.', 1)[0]
-            n = n[-4:]
-            aid = args[1][0:8]
-            pid = "!anon" + _getAnonId(n, aid)
-            self._botname = pid
-            self._currentname = pid
-            self.user._nameColor = n
-        # if got name, join room as name and no password
+            # Nothing need to be done for anon login
+            pass
+        # if name is provided but no password, attempt to change name to temp name
         elif args[2] == "N" and self._mgr.password is None:
             self._sendCommand("blogin", self._mgr.name)
-            self._currentname = self._mgr.name
-        # if got password but fail to login
-        elif args[2] != "M":  # unsuccesful login
+        # if name and password is provided but fail to login
+        elif args[2] != "M":  # unsuccessful login
             self._callEvent("onLoginFail")
             self.disconnect()
+        # Successful login
+        elif args[2] == "M":
+            self._bot_name: str = self._mgr.name
         self.owner = User(args[0])
         self.uid = args[1]
         self._mods = set(map(lambda x: User(x.split(",")[0]), args[6].split(";")))
         self._i_log.clear()
+
+    def _rcmd_aliasok(self, _args: list[str]):
+        # Successful Setting Temp Name
+        self._bot_name = "#"+self._login_name
+
+    def _rcmd_pwdok(self, _args: list[str]):
+        # Successful login from anon/temp mode
+        self._bot_name = self._login_name
 
     def _rcmd_denied(self, _args: list[str]):
         self._disconnect()
@@ -1009,7 +1015,10 @@ class Room:
                 nameColor = None
         i = args[5]
         unid = args[4]
-        user = User(name)
+        # Replace message.user with our unique user object
+        # if name matches the current bot name in room
+        # to simplify telling apart the bot (self) for the user
+        user = User(name) if name != self._bot_name else self.user
         # Create an anonymous message and queue it because msgid is unknown.
         if f:
             fontColor, fontFace, fontSize = _parseFont(f)
@@ -1056,7 +1065,10 @@ class Room:
                 nameColor = None
         # i = args[5]
         unid = args[4]
-        user = User(name)
+        # Replace message.user with our unique user object
+        # if name matches the current bot name in room
+        # to simplify telling apart the bot (self) for the user
+        user = User(name) if name != self._bot_name else self.user
         # Create an anonymous message and queue it because msgid is unknown.
         if f:
             fontColor, fontFace, fontSize = _parseFont(f)
@@ -1192,12 +1204,12 @@ class Room:
             self._sendCommand("blogin", NAME, PASS)
         else:
             self._sendCommand("blogin", NAME)
-        self._currentname = NAME
+        self._login_name = NAME
 
     def logout(self):
         """logout of user in a room"""
         self._sendCommand("blogout")
-        self._currentname = self._botname
+        self._bot_name = self._anon_name
 
     def ping(self):
         """Send a ping."""
@@ -1232,11 +1244,18 @@ class Room:
                     msg = msg[self._mgr._maxLength:]
                     self.message(sect, html=html)
             return
-        msg = "<n" + self.user.nameColor + "/>" + msg
-        if self._currentname is not None and not self._currentname.startswith("!anon"):
-            font_properties = "<f x%0.2i%s=\"%s\">" % (self.user.fontSize,
-                                                       self.user.fontColor,
-                                                       self.user.fontFace)
+
+        if self._bot_name.startswith("!anon"):
+            # if the bot is current login as anon
+            # use the anon n that was provided by the server
+            msg = "<n" + self._anon_n + "/>" + msg
+        else:
+            msg = "<n" + self.user.nameColor + "/>" + msg
+
+        if not self._bot_name.startswith("!anon"):
+            font_properties = "<f x%s%s=\"%s\">" % (self.user.fontSize.zfill(2),
+                                                    self.user.fontColor,
+                                                    self.user.fontFace)
             if "\n" in msg:
                 msg.replace("\n", "</f></p><p>%s" % (font_properties))
             msg = font_properties + msg
@@ -1593,7 +1612,7 @@ class RoomManager:
     ####
     # Properties
     ####
-    def _getUser(self): return User(self._name)
+    def _getUser(self): return User("@self") if self._name is None else User(self._name)
     def _getName(self): return self._name
     def _getPassword(self): return self._password
     def _getRooms(self): return set(self._rooms.values())
@@ -2113,7 +2132,7 @@ class RoomManager:
 
         @param color3x: a 3-char RGB hex code for the color
         """
-        self.user._nameColor = color3x
+        self.user.nameColor = color3x
 
     def setFontColor(self, color3x: str):
         """
@@ -2121,7 +2140,7 @@ class RoomManager:
 
         @param color3x: a 3-char RGB hex code for the color
         """
-        self.user._fontColor = color3x
+        self.user.fontColor = color3x
 
     def setFontFace(self, face: str):
         """
@@ -2129,7 +2148,7 @@ class RoomManager:
 
         @param face: the font face
         """
-        self.user._fontFace = face
+        self.user.fontFace = face
 
     def setFontSize(self, size: int):
         """
@@ -2141,7 +2160,7 @@ class RoomManager:
             size = 9
         if size > 22:
             size = 22
-        self.user._fontSize = str(size)
+        self.user.fontSize = str(size)
 
     @classmethod
     def secure_easy_start(cls, rooms: Optional[list[str]] = None,
@@ -2182,7 +2201,6 @@ class RoomManager:
                 # login as name with password
                 if name and password:
                     self._sendCommand("bauth", self.name, self.uid, name, password)
-                    self._currentname = self._mgr.name
                 # login as anon
                 else:
                     self._sendCommand("bauth", self.name, "", "", "")
