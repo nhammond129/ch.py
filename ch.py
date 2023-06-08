@@ -776,6 +776,13 @@ class Room:
         self.owner: User
         self._mods: set[User] = set()
         self._mqueue: dict[str, Message] = dict()
+        # NOTE: Is userlist with recent mode commonly used?
+        # if not, we should optimize for better onMessage Performance
+
+        # Look into better option for history,
+        # assuming we want to keep recent mode performance
+        # deque is not suitable due to the lack of slicing
+        # Set lack order,  possible to use dict[msg, None] but no slicing
         self.history: list[Message] = list()
         self._i_log: list[Message] = list()
         self._userlist: list[User] = list()
@@ -1545,7 +1552,6 @@ class Room:
 
         @param msg: message
         """
-        # TODO: look into changing self.history from list to deque
         self.history.append(msg)
         if len(self.history) > self._mgr.maxHistoryLength:
             rest, self.history = self.history[:-self._mgr.maxHistoryLength], \
