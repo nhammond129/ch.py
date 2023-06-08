@@ -2062,19 +2062,19 @@ class RoomManager:
                 con = [c for c in conns if c.sock == sock][0]
                 try:
                     data = sock.recv(1024)
-                    if (len(data) > 0):
+                    if len(data) > 0:
                         con.feed(data)
                     else:
                         con.disconnect()
-                except socket.error as e:
-                    print("[RoomManager][Main Loop] Socket error", e)
+                except socket.error as error:
+                    print("[RoomManager][Main Loop] Socket error", error)
             for sock in wr:
                 con = [c for c in conns if c.sock == sock][0]
                 try:
                     size = sock.send(con.wbuf)
                     con.wbuf = con.wbuf[size:]
-                except socket.error as e:
-                    print("[RoomManager][Main Loop] Socket error", e)
+                except socket.error as error:
+                    print("[RoomManager][Main Loop] Socket error", error)
             self._tick()
 
     @classmethod
