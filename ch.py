@@ -992,9 +992,9 @@ class Room:
     def _rcmd_premium(self, args: list[str]):
         if float(args[1]) > time.time():
             self.premium = True
-            if self.user._mbg:
+            if self.user.mbg:
                 self.setBgMode(1)
-            if self.user._mrec:
+            if self.user.mrec:
                 self.setRecordingMode(1)
         else:
             self.premium = False
@@ -2117,25 +2117,25 @@ class RoomManager:
     ####
     def enableBg(self):
         """Enable background if available."""
-        self.user._mbg = True
+        self.user.mbg = True
         for room in self.rooms:
             room.setBgMode(1)
 
     def disableBg(self):
         """Disable background."""
-        self.user._mbg = False
+        self.user.mbg = False
         for room in self.rooms:
             room.setBgMode(0)
 
     def enableRecording(self):
         """Enable recording if available."""
-        self.user._mrec = True
+        self.user.mrec = True
         for room in self.rooms:
             room.setRecordingMode(1)
 
     def disableRecording(self):
         """Disable recording."""
-        self.user._mrec = False
+        self.user.mrec = False
         for room in self.rooms:
             room.setRecordingMode(0)
 
