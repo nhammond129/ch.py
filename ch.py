@@ -1532,16 +1532,15 @@ class Room:
         # let's make it into a dict and limit it to users that contain the provided name
         users = {user.name: user for user in self.getUserlist() if name in user.name}
 
-        # exact match, bail early
-        if (user := users.get(name)):
-            return user
-
         if len(users) == 1:
             name, user = users.popitem()
             return user
         else:
             # Multiple user with the same name or no user with the name
-            return None
+
+            # Dict.get will return User if there is an exact match
+            # Otherwise it will return None
+            return users.get(name)
 
     ####
     # History
