@@ -1234,14 +1234,14 @@ class Room:
         msg = msg.rstrip()
         if not html:
             msg = msg.replace("<", "&lt;").replace(">", "&gt;")
-        if len(msg) > self._mgr._maxLength:
+        if len(msg) > self._mgr.maxLength:
             if self._mgr.tooBigMessage == BigMessage_Mode.Cut:
-                self.message(msg[:self._mgr._maxLength], html=html)
+                self.message(msg[:self._mgr.maxLength], html=html)
             elif self._mgr.tooBigMessage == BigMessage_Mode.Multiple:
                 # TODO: Improve method of spliting and sending message
                 while len(msg) > 0:
-                    sect = msg[:self._mgr._maxLength]
-                    msg = msg[self._mgr._maxLength:]
+                    sect = msg[:self._mgr.maxLength]
+                    msg = msg[self._mgr.maxLength:]
                     self.message(sect, html=html)
             return
 
@@ -1450,7 +1450,7 @@ class Room:
         if self._wlock:
             self._wlockbuf += data
         else:
-            self._mgr._write(self, data)
+            self._wbuf += data
 
     def _setWriteLock(self, lock: bool):
         self._wlock = lock
@@ -1534,8 +1534,9 @@ class Room:
         """
         # TODO: look into changing self.history from list to deque
         self.history.append(msg)
-        if len(self.history) > self._mgr._maxHistoryLength:
-            rest, self.history = self.history[:-self._mgr._maxHistoryLength], self.history[-self._mgr._maxHistoryLength:]
+        if len(self.history) > self._mgr.maxHistoryLength:
+            rest, self.history = self.history[:-self._mgr.maxHistoryLength], \
+                                 self.history[-self._mgr.maxHistoryLength:]
             for msg in rest:
                 msg.detach()
 
@@ -1557,8 +1558,8 @@ class RoomManager:
     userlistMemory = 50
     userlistEventUnique = False
     tooBigMessage = BigMessage_Mode.Multiple
-    _maxLength = 1800
-    _maxHistoryLength = 150
+    maxLength = 1800
+    maxHistoryLength = 150
 
     ####
     # Init
@@ -2010,9 +2011,6 @@ class RoomManager:
     ####
     # Util
     ####
-    def _write(self, room: Room | PM, data: bytes):
-        room._wbuf += data
-
     def addConnection(self, room: Room):
         self._rooms[room.name] = room
 
