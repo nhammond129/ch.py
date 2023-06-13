@@ -347,7 +347,7 @@ class Message:
         self.puid = puid
         self.room = room
         for attr, val in kw.items():
-            # Avoid overriding exisiting val with None
+            # Avoid overriding existing val with None
             if val is not None:
                 setattr(self, attr, val)
 
@@ -552,7 +552,7 @@ class PM:
             # in case chatango gives a "None" as data argument
             if last_on != "None":
                 if not self._updateStatus(user, is_on, last_on, idle):
-                    print("[PM][wl] Unsupport format: ", name, last_on, is_on, idle)
+                    print("[PM][wl] Unsupported format: ", name, last_on, is_on, idle)
             else:
                 print("[PM][wl] Received None for timestamp, consider submitting an issue:")
                 print(" -> ", name, last_on, is_on, idle)
@@ -577,7 +577,7 @@ class PM:
     def _rcmd_track(self, args: list[str]):
         user = User(args[0])
         if not self._updateStatus(user, args[2], args[1], args[1]):
-            print("[PM][track] Unsupport format: ", *args)
+            print("[PM][track] Unsupported format: ", *args)
 
     def _rcmd_DENIED(self, _args: list[str]):
         self._disconnect()
@@ -787,7 +787,7 @@ class Room:
         self._i_log: list[Message] = list()
         self._userlist: list[User] = list()
         self._firstCommand = True
-        self._connectAmmount = 0
+        self._connectAmount = 0
         self.premium = False
         self.usercount = 0
         self.pingTask: Task
@@ -984,7 +984,7 @@ class Room:
         self._sendCommand("getpremium", "1")
         self.requestBanlist()
         self.requestUnBanlist()
-        if self._connectAmmount == 0:
+        if self._connectAmount == 0:
             self._callEvent("onConnect")
             for msg in reversed(self._i_log):
                 user = msg.user
@@ -993,7 +993,7 @@ class Room:
             self._i_log.clear()
         else:
             self._callEvent("onReconnect")
-        self._connectAmmount += 1
+        self._connectAmount += 1
         self._setWriteLock(False)
 
     def _rcmd_premium(self, args: list[str]):
@@ -1664,62 +1664,62 @@ class RoomManager:
         """
         Called when connected to the room.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         """
 
     def onReconnect(self, room: Room):
         """
         Called when reconnected to the room.
-        @param room: room where the event occured
+        @param room: room where the event occurred
         """
 
     def onConnectFail(self, room: Room):
         """
         Called when the connection failed.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         """
 
     def onDisconnect(self, room: Room):
         """
         Called when the client gets disconnected.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         """
 
     def onLoginFail(self, room: Room):
         """
         Called on login failure, disconnects after.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         """
 
     def onFloodBan(self, room: Room):
         """
         Called when either flood banned or flagged.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         """
 
     def onFloodBanRepeat(self, room: Room):
         """
         Called when trying to send something when floodbanned.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         """
 
     def onFloodWarning(self, room: Room):
         """
         Called when an overflow warning gets received.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         """
 
     def onMessageDelete(self, room: Room, user: User, message: Message):
         """
         Called when a message gets deleted.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         @param user: owner of deleted message
         @param message: message that got deleted
         """
@@ -1728,28 +1728,28 @@ class RoomManager:
         """
         Called when the moderator list changes.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         """
 
     def onModAdd(self, room: Room, user: User):
         """
         Called when a moderator gets added.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         """
 
     def onModRemove(self, room: Room, user: User):
         """
         Called when a moderator gets removed.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         """
 
     def onMessage(self, room: Room, user: User, message: Message):
         """
         Called when a message gets received.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         @param user: owner of message
         @param message: received message
         """
@@ -1758,7 +1758,7 @@ class RoomManager:
         """
         Called when a message gets received from history.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         @param user: owner of message
         @param message: the message that got added
         """
@@ -1767,7 +1767,7 @@ class RoomManager:
         """
         Called when a user joins. Anonymous users get ignored here.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         @param user: the user that has joined
         @param puid: the personal unique id for the user
         """
@@ -1776,7 +1776,7 @@ class RoomManager:
         """
         Called when a user leaves. Anonymous users get ignored here.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         @param user: the user that has left
         @param puid: the personal unique id for the user
         """
@@ -1785,7 +1785,7 @@ class RoomManager:
         """
         Called before any command parsing occurs.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         @param raw: raw command data
         """
 
@@ -1793,21 +1793,21 @@ class RoomManager:
         """
         Called when a ping gets sent.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         """
 
     def onUserCountChange(self, room: Room):
         """
         Called when the user count changes.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         """
 
     def onBan(self, room: Room, user: User, target: User):
         """
         Called when a user gets banned.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         @param user: user that banned someone
         @param target: user that got banned
         """
@@ -1816,7 +1816,7 @@ class RoomManager:
         """
         Called when a user gets unbanned.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         @param user: user that unbanned someone
         @param target: user that got unbanned
         """
@@ -1825,14 +1825,14 @@ class RoomManager:
         """
         Called when a banlist gets updated.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         """
 
     def onUnBanlistUpdate(self, room: Room):
         """
         Called when a unbanlist gets updated.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         """
 
     def onPMConnect(self, pm: PM):
@@ -1940,7 +1940,7 @@ class RoomManager:
         """
         Called on every room-based event.
 
-        @param room: room where the event occured
+        @param room: room where the event occurred
         @param evt: the event
         """
 
@@ -2187,7 +2187,7 @@ class RoomManager:
         while avoiding storing the password within self
 
         [WARNING] not audited by third party but I believe the password
-                  shouldn't be accessable within bot instance
+                  shouldn't be accessible within bot instance
 
         @param room: rooms to join
         @param name: name to join as ("" = None, None = unspecified)
@@ -2195,7 +2195,7 @@ class RoomManager:
         """
         print("Starting ch.RoomManager with secure_easy_start")
         print("[WARNING] not audited by third party but I believe the password"
-              " shouldn't be accessable within bot instance")
+              " shouldn't be accessible within bot instance")
         if rooms is None:
             rooms = str(input("Room names separated by semicolons: ")).split(";")
         if len(rooms) == 1 and rooms[0] == "":
