@@ -403,7 +403,7 @@ class Task:
         """
         if not self.queued:
             self.queued = True
-            heapq.heappush(Task._tasks, (self.target, self._counter, self))
+            heapq.heappush(Task._tasks, (self.target, self.counter, self))
 
     def size(self):
         """Return the number of task queued, excluding cancelled task"""
