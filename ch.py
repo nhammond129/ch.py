@@ -14,7 +14,19 @@
 # Version: pre-1.4.0
 # Changelog:
 #   pre-1.4.0:
-#       Mostly cleaning up my mess and modernizing the code base
+#       * General assumed performance improvement of miscellaneous functions  - asl97
+#       * Close the bot when not connected to anything with no pending task or running thread via deferToThread
+#           - New task/room/output usually only get added due to input via select.select, existing tasks or deferToThread, they don't magically appear except when people mess with threading
+#           \
+#           Use the newly added flag as shown in example.py
+#           `disconnectOnEmptyConnAndTask = False` 
+#           \
+#           for old behavior of pointlessly checking every 0.2 seconds by default \- asl97
+#       * Use deterministic waiting for tasks in main loop - asl97
+#       * No more joinThread nonsense, Fixes joinRoom to returns Room Object again
+#       - Seem to work fine when testing connecting to 15 rooms at once \- asl97
+#       * Mostly cleaning up my mess and modernizing the code base - asl97
+#       * Python 2 is no longer supported for good, it's EoL since 2020 - asl97
 # Description:
 #   A mostly abandoned event-based library for connecting
 #   to one or multiple Chatango rooms, has support for several things
@@ -416,6 +428,7 @@ class Task:
 
         @return: time in seconds to the next task or None if no task
         """
+        # TODO: Add performance related data gathering and warning if a task took too long
         now = time.time()
         tasks: list[Task] = []
 
