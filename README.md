@@ -6,9 +6,26 @@ Distributed under the terms of the GNU GPL.
 has support for several things including: messaging, message font, name color, deleting, banning,
 recent history, two userlist modes, flagging, avoiding flood bans, detecting flags.
 
+##### Planned Changes Before 1.4 release
+###### Assuming I don't lose interest in doing the following - asl97
+* Improve buffer performance by using bytearrays in place of bytes in places
+* Generalize handling of Room and PM into Conn like object - asl97
+  - for easier to support other platform other than chatango - asl97
+
 ##### Changelog:
 ###### pre-1.4.0:
-> Mostly cleaning up my mess and modernizing the code base - asl97
+* General assumed performance improvement of miscellaneous functions  - asl97
+* Close the bot when not connected to anything with no pending task or running thread via deferToThread
+  - New task/room/output usually only get added due to input via select.select, existing tasks or deferToThread, they don't magically appear except when people mess with threading
+    \
+    Use the newly added flag as shown in example.py
+    `disconnectOnEmptyConnAndTask = False` 
+    \
+    for old behavior of pointlessly checking every 0.2 seconds by default \- asl97
+* Use deterministic waiting for tasks in main loop - asl97
+* No more joinThread nonsense, Fixes joinRoom to returns Room Object again
+  - Seem to work fine when testing connecting to 15 rooms at once \- asl97
+* Mostly cleaning up my mess and modernizing the code base - asl97
 
 ###### Newest available version 1.3 will be available on the v1.3 branch:
 https://github.com/nhammond129/ch.py/tree/v1.3
