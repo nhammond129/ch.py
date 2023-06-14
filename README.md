@@ -26,6 +26,7 @@ recent history, two userlist modes, flagging, avoiding flood bans, detecting fla
 * No more joinThread nonsense, Fixes joinRoom to returns Room Object again
   - Seem to work fine when testing connecting to 15 rooms at once \- asl97
 * Mostly cleaning up my mess and modernizing the code base - asl97
+* Python 2 is no longer supported for good, it's EoL since 2020 - asl97
 
 ###### Newest available version 1.3 will be available on the v1.3 branch:
 https://github.com/nhammond129/ch.py/tree/v1.3
