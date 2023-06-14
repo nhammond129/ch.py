@@ -1635,6 +1635,7 @@ class RoomManager:
     _PM = PM
     # socket select wait/sleep time in seconds before next task tick
     _TimerResolution = 0.2
+    _deferredThreads: set[threading.Thread] = set()
     disconnectOnEmptyConnAndTask = True
     pingDelay = 20
     userlistMode = Userlist_Mode.Recent
@@ -2024,7 +2025,11 @@ class RoomManager:
         def f(func: Callable[..., None], cb: Callable[..., None], *args: ..., **kw: ...):
             ret = func(*args, **kw)
             self.setTimeout(0, cb, ret)
-        threading.Thread(target=f, args=(func, cb, *args), kwargs=kw).start()
+            self._deferredThreads.remove(threading.current_thread())
+
+        t = threading.Thread(target=f, args=(func, cb, *args), kwargs=kw)
+        self._deferredThreads.add(t)
+        t.start()
 
     ####
     # Scheduling
@@ -2116,7 +2121,9 @@ class RoomManager:
                 if time_to_next_task is None:
                     # Backward compatibilty in case of deferToThread joinRoom
                     # or user managed threading
-                    if self.disconnectOnEmptyConnAndTask:
+
+                    # NOTE: Check for threading.active_count() instead?
+                    if not self._deferredThreads and self.disconnectOnEmptyConnAndTask:
                         self.stop()
                         break
 
