@@ -991,6 +991,12 @@ class Room:
 
         @param data: data to be fed
         """
+        # Assume we intented to disconnect for some reason
+        # We shouldn't continue to process the rest of the data still in the pipe
+        # as it might error due to us already clearing the room state when disconnecting
+        if not self.connected:
+            return
+
         self._rbuf += data
         while self._rbuf.find(b"\x00") != -1:
             lines = self._rbuf.split(b"\x00")
