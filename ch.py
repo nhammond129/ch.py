@@ -51,6 +51,7 @@ import urllib.request
 import urllib.parse
 import urllib.error
 import bisect
+import heapq
 import html as _html
 
 from ch_weights import specials, tsweights
@@ -359,19 +360,82 @@ class Message:
 
 
 class Task:
+    """
+    Better Deterministic Task Manager using Heapq
+    """
+    _tasks:  list[tuple[float, int, Task]] = []
+    # Task counter/id to serve as tie breaker
+    # if there are multiple conflicting time target
+    _counter: int = 0
+
+    # for getting size of task queue by keeping track of count of canceled task
+    _removed: int = 0
+
     def __init__(self, mgr: RoomManager, timeout: int, func: Callable[..., None],
                  isInterval: bool, args: ..., kw: ...):
+        Task._counter += 1
+
         self.mgr = mgr
         self.target = time.time() + timeout
+        self.counter = Task._counter
         self.timeout = timeout
         self.func = func
         self.isInterval = isInterval
         self.args = args
         self.kw = kw
+        self.cancelled = False
+        self.queued = False
+
+        self.queue()
 
     def cancel(self):
-        """Sugar for removeTask."""
-        self.mgr.removeTask(self)
+        """
+        Mark task as canceled without removing from the list
+
+        Because removing from the list would require reheapifying the list
+        """
+        Task._removed += 1
+        self.cancelled = True
+
+    def queue(self):
+        """
+        A helper function for queuing the task into the task queue
+        """
+        if not self.queued:
+            self.queued = True
+            heapq.heappush(Task._tasks, (self.target, self._counter, self))
+
+    def size(self):
+        """Return the number of task queued, excluding cancelled task"""
+        return len(Task._tasks) - Task._removed
+
+    @staticmethod
+    def tick() -> float | None:
+        """
+        Process the tasks
+
+        @return: time in seconds to the next task or None if no task
+        """
+        now = time.time()
+        tasks: list[Task] = []
+
+        while Task._tasks and (Task._tasks[0][0] <= now or
+                               Task._tasks[0][2].cancelled):
+            _target, _counter, task = heapq.heappop(Task._tasks)
+            task.queued = False
+            if task.cancelled:
+                Task._removed -= 1
+            else:
+                tasks.append(task)
+
+        for task in tasks:
+            task.func(*task.args, **task.kw)
+            if task.isInterval:
+                task.target = now + task.timeout
+                task.queue()
+
+        if Task._tasks:
+            return Task._tasks[0][0] - now
 
 
 class Conn(Protocol):
@@ -1569,7 +1633,9 @@ class RoomManager:
     ####
     _Room = Room
     _PM = PM
-    _TimerResolution = 0.2  # at least x times per second
+    # socket select wait/sleep time in seconds before next task tick
+    _TimerResolution = 0.2
+    disconnectOnEmptyConnAndTask = True
     pingDelay = 20
     userlistMode = Userlist_Mode.Recent
     userlistUnique = True
@@ -1587,7 +1653,6 @@ class RoomManager:
         self._name = name
         self._password = password
         self._running = False
-        self._tasks: set[Task] = set()
         self._rooms: dict[str, Room] = dict()
         if self._password and pm:
             self._pm = self._PM(mgr=self)
@@ -1965,16 +2030,6 @@ class RoomManager:
     # Scheduling
     ####
 
-    def _tick(self):
-        now = time.time()
-        for task in set(self._tasks):
-            if task.target <= now:
-                task.func(*task.args, **task.kw)
-                if task.isInterval:
-                    task.target = now + task.timeout
-                else:
-                    self._tasks.remove(task)
-
     def setTimeout(self, timeout: int, func: Callable[..., None],
                    *args: ..., **kw: ...) -> Task:
         """
@@ -1993,7 +2048,6 @@ class RoomManager:
             args=args,
             kw=kw
         )
-        self._tasks.add(task)
         return task
 
     def setInterval(self, timeout: int, func: Callable[..., None],
@@ -2014,17 +2068,15 @@ class RoomManager:
             args=args,
             kw=kw
         )
-        self._tasks.add(task)
         return task
 
     def removeTask(self, task: Task):
         """
-        Cancel a task.
+        Sugar for task.cancel for backward compatibility
 
-        @type task: _Task
         @param task: task to cancel
         """
-        self._tasks.remove(task)
+        task.cancel()
 
     ####
     # Util
@@ -2054,10 +2106,27 @@ class RoomManager:
         self.onInit()
         self._running = True
         while self._running:
+            time_to_next_task = Task.tick()
+
             conns = self.getConnections()
             socks = [x.sock for x in conns]
             wsocks = [x.sock for x in conns if x.wbuf != b""]
-            rd, wr, _ = select.select(socks, wsocks, [], self._TimerResolution)
+
+            if not socks:
+                if time_to_next_task is None:
+                    # Backward compatibilty in case of deferToThread joinRoom
+                    # or user managed threading
+                    if self.disconnectOnEmptyConnAndTask:
+                        self.stop()
+                        break
+
+                    time.sleep(self._TimerResolution)
+                else:
+                    time.sleep(time_to_next_task)
+
+                continue
+
+            rd, wr, _ = select.select(socks, wsocks, [], time_to_next_task)
             for sock in rd:
                 con = [c for c in conns if c.sock == sock][0]
                 try:
@@ -2075,7 +2144,6 @@ class RoomManager:
                     con.wbuf = con.wbuf[size:]
                 except socket.error as error:
                     print("[RoomManager][Main Loop] Socket error", error)
-            self._tick()
 
     @classmethod
     def easy_start(cls, rooms: Optional[list[str]] = None,
@@ -2240,7 +2308,6 @@ class RoomManager:
             def __init__(self, pm: bool = True):  # pylint: disable=super-init-not-called
                 self._name = name
                 self._running = False
-                self._tasks = set()
                 self._rooms = dict()
                 if password and pm:
                     self._pm = self._PM(mgr=self)
