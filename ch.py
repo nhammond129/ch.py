@@ -731,6 +731,7 @@ class PM:
     def message(self, user: User, msg: str):
         """send a pm to a user"""
         if msg != "":
+            msg = msg.replace('\n', '\r')
             self._sendCommand("msg", user.name, msg)
 
     def addContact(self, user: User):
@@ -1340,9 +1341,11 @@ class Room:
             font_properties = "<f x%s%s=\"%s\">" % (self.user.fontSize.zfill(2),
                                                     self.user.fontColor,
                                                     self.user.fontFace)
-            if "\n" in msg:
-                msg.replace("\n", "</f></p><p>%s" % (font_properties))
             msg = font_properties + msg
+
+        if "\n" in msg:
+            msg = msg.replace("\n", "\r")
+
         msg.replace("~", "&#126;")
         self.rawMessage(msg)
 
