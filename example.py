@@ -2,6 +2,9 @@
 import ch
 
 class TestBot(ch.RoomManager):
+  # Set backward compatibility behavior flag for older bots
+  # using threading for non deterministic modification of tasks or conns (rooms)
+  disconnectOnEmptyConnAndTask = False
 
   def onConnect(self, room):
     print("Connected to "+room.name)
