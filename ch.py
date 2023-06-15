@@ -432,7 +432,7 @@ class Task:
 
     def size(self):
         """Return the number of task queued, excluding cancelled task"""
-        return len(Task._tasks_queue) - Task._removed
+        return len(Task._tasks_queue) + len(Task._tasks) + len(Task._tasks_once) - Task._removed  # noqa: E501
 
     @staticmethod
     def yield_tasks(now: float) -> Generator[Task, None, None]:
