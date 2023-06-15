@@ -51,7 +51,7 @@ r"""
 # Imports
 ################################################################
 from __future__ import annotations
-from typing import Any, Protocol, Self, Callable, Optional
+from typing import Any, Generator, Protocol, Self, Callable, Optional
 import typing
 import enum
 
@@ -377,13 +377,17 @@ class Task:
     """
     Better Deterministic Task Manager using Heapq
     """
-    _tasks:  list[tuple[float, int, Task]] = []
+    _tasks_queue:  list[tuple[float, int, Task]] = []
+    _tasks_once: set[Task] = set()
+    _tasks: set[Task] = set()
     # Task counter/id to serve as tie breaker
     # if there are multiple conflicting time target
     _counter: int = 0
 
     # for getting size of task queue by keeping track of count of canceled task
     _removed: int = 0
+
+    running_task: None | Task = None
 
     def __init__(self, mgr: RoomManager, timeout: int, func: Callable[..., None],
                  isInterval: bool, args: ..., kw: ...):
@@ -398,9 +402,16 @@ class Task:
         self.args = args
         self.kw = kw
         self.cancelled = False
-        self.queued = False
 
-        self.queue()
+        if timeout < 0:
+            self.queued = True
+            if isInterval:
+                Task._tasks.add(self)
+            else:
+                Task._tasks_once.add(self)
+        else:
+            self.queued = False
+            self.queue()
 
     def cancel(self):
         """
@@ -417,11 +428,27 @@ class Task:
         """
         if not self.queued:
             self.queued = True
-            heapq.heappush(Task._tasks, (self.target, self.counter, self))
+            heapq.heappush(Task._tasks_queue, (self.target, self.counter, self))
 
     def size(self):
         """Return the number of task queued, excluding cancelled task"""
-        return len(Task._tasks) - Task._removed
+        return len(Task._tasks_queue) - Task._removed
+
+    @staticmethod
+    def yield_tasks(now: float) -> Generator[Task, None, None]:
+        """Yield the overdue tasks"""
+        while Task._tasks_queue and (Task._tasks_queue[0][0] <= now or
+                                     Task._tasks_queue[0][2].cancelled):
+            _target, _counter, task = heapq.heappop(Task._tasks_queue)
+            task.queued = False
+            yield task
+
+        # We don't set the queued to False for `run on next tick` tasks
+        # so it doesn't get added to the regular queue
+        yield from Task._tasks
+
+        yield from Task._tasks_once
+        Task._tasks_once.clear()
 
     @staticmethod
     def tick() -> float | None:
@@ -434,23 +461,23 @@ class Task:
         now = time.time()
         tasks: list[Task] = []
 
-        while Task._tasks and (Task._tasks[0][0] <= now or
-                               Task._tasks[0][2].cancelled):
-            _target, _counter, task = heapq.heappop(Task._tasks)
-            task.queued = False
+        for task in Task.yield_tasks(now):
             if task.cancelled:
                 Task._removed -= 1
             else:
                 tasks.append(task)
 
         for task in tasks:
+            Task.running_task = task
             task.func(*task.args, **task.kw)
             if task.isInterval:
                 task.target = now + task.timeout
                 task.queue()
 
-        if Task._tasks:
-            return Task._tasks[0][0] - now
+        Task.running_task = None
+
+        if Task._tasks_queue:
+            return Task._tasks_queue[0][0] - now
 
 
 class Conn(Protocol):
@@ -2069,6 +2096,28 @@ class RoomManager:
 
         @return: object representing the task
         """
+        # TODO: is there an valid use case of timeout 0?
+        # I guess it could be use to setup an equivalent of setimmediate which runs
+        # after cleanly exiting bot related code and running all preexisiting pending tasks
+
+        # This will only be printed with an error raised when the user does a dumb thing
+        # like a function calling setTimeout on itself with timeout 0 instead of using
+        # setInterval
+
+        # def dumbfunc(self):
+        #    self.setTimeout(0, self.dumbfunc)
+
+        if timeout == 0 and Task.running_task is not None and Task.running_task.func == func:
+            print('[task][warning] `timeout == 0` will result in high cpu usage with '
+                  '"interval usage", use -1 timeout if intended to run once per tick, '
+                  'or a reasonable amount of timeout like 0.2 (5 times per second)')
+            print('[task][note] An error will be raised to avoid this message being printed '
+                  'multiple times, consider using setInterval instead of a setTimeout within '
+                  'a setTimeout if timeout 0 is required, and canceling it via '
+                  'ch.Task.running_task.cancel() from within the task itself')
+            raise RuntimeError('Preemptively exiting to prevent possible log flood causing '
+                               'disk space exhaustion')
+
         task = Task(
             mgr=self,
             timeout=timeout,
@@ -2089,6 +2138,12 @@ class RoomManager:
 
         @return: object representing the task
         """
+
+        if timeout == 0:
+            print('[RoomManager][setInterval] `timeout == 0` will result in high cpu usage '
+                  'with "interval usage", use -1 timeout if intended to run once per tick, '
+                  'or a reasonable amount of timeout like 0.2 (5 times per second)')
+
         task = Task(
             mgr=self,
             timeout=timeout,
