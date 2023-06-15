@@ -19,7 +19,7 @@ recent history, two userlist modes, flagging, avoiding flood bans, detecting fla
   - New task/room/output usually only get added due to input via select.select, existing tasks or deferToThread, they don't magically appear except when people mess with threading
     \
     Use the newly added flag as shown in example.py
-    `disconnectOnEmptyConnAndTask = False` 
+    `disconnectOnEmptyConnAndTask = False`
     \
     for old behavior of pointlessly checking every 0.2 seconds by default \- asl97
 * Use deterministic waiting for tasks in main loop - asl97
