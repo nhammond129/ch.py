@@ -228,7 +228,7 @@ class User:
         """Return existing User Object for given user name"""
         lname = name.lower()
         if lname not in cls._users:
-            cls._users[lname] = super().__new__(cls, **kw)
+            cls._users[lname] = super().__new__(cls)
         return cls._users[lname]
 
     ####
