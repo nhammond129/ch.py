@@ -434,8 +434,10 @@ class Task:
         """Return the number of task queued, excluding cancelled task"""
         return len(Task._tasks_queue) + len(Task._tasks) + len(Task._tasks_once) - Task._removed  # noqa: E501
 
+    # TODO: figure out if there a naming convention for iter/yield function name
+    # like there is for length, queue.qsize
     @staticmethod
-    def yield_tasks(now: float) -> Generator[Task, None, None]:
+    def _yield_tasks(now: float) -> Generator[Task, None, None]:
         """Yield the overdue tasks"""
         while Task._tasks_queue and (Task._tasks_queue[0][0] <= now or
                                      Task._tasks_queue[0][2].cancelled):
@@ -461,7 +463,7 @@ class Task:
         now = time.time()
         tasks: list[Task] = []
 
-        for task in Task.yield_tasks(now):
+        for task in Task._yield_tasks(now):
             if task.cancelled:
                 Task._removed -= 1
             else:
