@@ -1,7 +1,9 @@
 #!/usr/bin/python
 import ch
+import ch.mixin
 
-class TestBot(ch.RoomManager):
+
+class TestBot(ch.mixin.WindowsMainLoopFix, ch.RoomManager):
   # Set backward compatibility behavior flag for older bots
   # using threading for non deterministic modification of tasks or conns (rooms)
   disconnectOnEmptyConnAndTask = False
