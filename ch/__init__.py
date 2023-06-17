@@ -224,7 +224,7 @@ class User:
 
     _users: dict[str, Self] = dict()
 
-    def __new__(cls, name: str, **kw: ...) -> Self:
+    def __new__(cls, name: str, **_kw: ...) -> Self:
         """Return existing User Object for given user name"""
         lname = name.lower()
         if lname not in cls._users:
