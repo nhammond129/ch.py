@@ -6,14 +6,22 @@ Distributed under the terms of the GNU GPL.
 has support for several things including: messaging, message font, name color, deleting, banning,
 recent history, two userlist modes, flagging, avoiding flood bans, detecting flags.
 
+##### Planned Changes for future 1.4.* release
+* Websocket Implementation of Room and PM
+* IRC Implementation?
+* Example of async implementation?
+
 ##### Planned Changes Before 1.4 release
 ###### Assuming I don't lose interest in doing the following - asl97
-* Improve buffer performance by using bytearrays in place of bytes in places
-* Generalize handling of Room and PM into Conn like object - asl97
-  - for easier to support other platform other than chatango - asl97
+* Performance measuring and warning system
+
 
 ##### Changelog:
 ###### pre-1.4.0:
+* Generalize handling of Room and PM into Conn like object - asl97
+  - for easier to support other platform other than chatango - asl97
+* Improve buffer performance by using bytearrays in place of bytes in places - asl97
+  - Update the buffer in-place whenever possible
 * General assumed performance improvement of miscellaneous functions  - asl97
 * Close the bot when not connected to anything with no pending task or running thread via deferToThread
   - New task/room/output usually only get added due to input via select.select, existing tasks or deferToThread, they don't magically appear except when people mess with threading

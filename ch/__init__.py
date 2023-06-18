@@ -15,6 +15,10 @@ r"""
 # Version: pre-1.4.0
 # Changelog:
 #   pre-1.4.0:
+#       * Generalize handling of Room and PM into Conn like object - asl97
+#           - for easier to support other platform other than chatango - asl97
+#       * Improve buffer performance by using bytearrays in place of bytes in places - asl97
+#           - Update the buffer in-place whenever possible
 #       * General assumed performance improvement of miscellaneous functions  - asl97
 #       * Close the bot when not connected to anything with no pending task or running thread via deferToThread
 #           - New task/room/output usually only get added due to input via select.select, existing tasks or deferToThread, they don't magically appear except when people mess with threading
