@@ -3,7 +3,6 @@
 # pylint fail to properly detect member, false positive so disabled
 # pylint: disable=no-member
 import select
-import socket
 import time
 
 # Importing ch for type hinting
