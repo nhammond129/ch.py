@@ -26,10 +26,9 @@ class _WindowsMainLoopFix(ch.RoomManager):
             time_to_next_task = ch.Task.tick()
 
             conns = self.getConnections()
-            socks = [x.sock for x in conns]
-            wsocks = [x.sock for x in conns if x.wbuf != b""]
+            wsocks = [sock for sock, x in conns.items() if x.pendingWrite]
 
-            if not socks:
+            if not conns:
                 if time_to_next_task is None:
                     # Backward compatibility in case of deferToThread joinRoom
                     # or user managed threading
@@ -49,25 +48,14 @@ class _WindowsMainLoopFix(ch.RoomManager):
                 time_to_next_task = self._TimerResolution
 
             for _ in range(int((time_to_next_task/0.2)+0.5)):
-                rd, wr, _ = select.select(socks, wsocks, [], 0.2)
+                rd, wr, _ = select.select(conns, wsocks, [], 0.2)
                 if rd or wr:
                     for sock in rd:
-                        con = [c for c in conns if c.sock == sock][0]
-                        try:
-                            data = sock.recv(1024)
-                            if len(data) > 0:
-                                con.feed(data)
-                            else:
-                                con.disconnect()
-                        except socket.error as error:
-                            print("[RoomManager][Main Loop] Socket error", error)
+                        con = conns[sock]
+                        con.rfeed()
                     for sock in wr:
-                        con = [c for c in conns if c.sock == sock][0]
-                        try:
-                            size = sock.send(con.wbuf)
-                            con.wbuf = con.wbuf[size:]
-                        except socket.error as error:
-                            print("[RoomManager][Main Loop] Socket error", error)
+                        con = conns[sock]
+                        con.wfeed()
                     break
 
 

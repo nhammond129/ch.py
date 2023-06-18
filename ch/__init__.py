@@ -488,9 +488,15 @@ class Conn(Protocol):
     of a Conn object like Room and PM
     """
     sock: socket.socket
-    wbuf: bytes
 
-    def feed(self, data: bytes):
+    @property
+    def pendingWrite(self) -> bool:
+        ...
+
+    def rfeed(self):
+        ...
+
+    def wfeed(self):
         ...
 
     def disconnect(self):
@@ -532,9 +538,10 @@ class PM:
         self._mgr = mgr
         self._wlock = False
         self._firstCommand = True
-        self.wbuf = b""
-        self._wlockbuf = b""
-        self._rbuf = b""
+        self._wbuf = bytearray()
+        self._wlockbuf = bytearray()
+        self._rbuf = bytearray()
+        self._sbuf = bytearray(2**14)
         self._pingTask = None
         self._connect()
 
@@ -542,7 +549,7 @@ class PM:
     # Connections
     ####
     def _connect(self):
-        self.wbuf = b""
+        self._wbuf.clear()
         self._firstCommand = True
         if self._auth():
             self.sock = socket.socket()
@@ -615,17 +622,37 @@ class PM:
     ####
     # Feed
     ####
-    def feed(self, data: bytes):
-        """
-        Feed data to the connection.
+    @property
+    def pendingWrite(self) -> bool:
+        return bool(self._wbuf)
 
-        @param data: data to be fed
-        """
-        self._rbuf += data
-        chunks = self._rbuf.split(b"\x00")
-        for chunk in chunks[:-1]:
-            self._process(chunk.decode(errors="replace").rstrip("\r\n"))
-        self._rbuf = chunks[-1]
+    def feed_tick(self):
+        # wait till entire message is received, message is delimited by 0
+        if self._rbuf[-1] == 0:
+            del self._rbuf[-1]
+
+            lines = self._rbuf.decode().split("\x00")
+            for line in lines:
+                self._process(line.rstrip("\r\n"))
+            self._rbuf.clear()
+
+    def rfeed(self):
+        try:
+            size = self.sock.recv_into(self._sbuf)
+            if size > 0:
+                self._rbuf += self._sbuf[:size]
+                self.feed_tick()
+            else:
+                self.disconnect()
+        except socket.error as error:
+            print("[PM][rfeed] Socket error", error)
+
+    def wfeed(self):
+        try:
+            size = self.sock.send(self._wbuf)
+            del self._wbuf[:size]
+        except socket.error as error:
+            print("[PM][wfeed] Socket error", error)
 
     def _process(self, data: str):
         """
@@ -633,6 +660,12 @@ class PM:
 
         @param data: the command string
         """
+        # Assume we intended to disconnect for some reason
+        # We shouldn't continue to process the rest of the data still in the pipe
+        # as it might error due to us already clearing the room state when disconnecting
+        if not self.connected:
+            return
+
         self._callEvent("onRaw", data)
         cmd, *args = data.split(":")
         func = "_rcmd_" + cmd
@@ -836,13 +869,13 @@ class PM:
         if self._wlock:
             self._wlockbuf += data
         else:
-            self.wbuf += data
+            self._wbuf += data
 
     def _setWriteLock(self, lock: bool):
         self._wlock = lock
         if self._wlock is False:
-            self._write(self._wlockbuf)
-            self._wlockbuf = b""
+            self._wbuf += self._wlockbuf
+            self._wlockbuf.clear()
 
     def _sendCommand(self, *args: str):
         """
@@ -879,9 +912,12 @@ class Room:
         self._reconnecting = False
         self._provided_uid = uid
         self.uid: str = self._provided_uid or _genUid()
-        self._rbuf = b""
-        self.wbuf = b""
-        self._wlockbuf = b""
+
+        self._sbuf = bytearray(2**14)
+        self._rbuf = bytearray()
+        self._wbuf = bytearray()
+        self._wlockbuf = bytearray()
+
         self.owner: User
         self._mods: set[User] = set()
         self._mqueue: dict[str, Message] = dict()
@@ -925,7 +961,7 @@ class Room:
         self.sock.connect_ex((self._server, self._port))
         self._mgr.addConnection(self)
         self._firstCommand = True
-        self.wbuf = b""
+        self._wbuf.clear()
         self._auth()
         self.pingTask: Task = self._mgr.setInterval(self._mgr.pingDelay, self.ping)
         self.connected = True
@@ -972,6 +1008,10 @@ class Room:
     def botname(self) -> str:
         return self._bot_name
 
+    @property
+    def pendingWrite(self) -> bool:
+        return bool(self._wbuf)
+
     def getUserlist(self, mode: Optional[Userlist_Mode] = None,
                     unique: Optional[bool] = None, memory: Optional[int] = None):
         ul = []
@@ -1016,24 +1056,32 @@ class Room:
     ####
     # Feed/process
     ####
-    def feed(self, data: bytes):
-        """
-        Feed data to the connection.
+    def feed_tick(self):
+        # wait till entire message is received, message is delimited by 0
+        if self._rbuf[-1] == 0:
+            del self._rbuf[-1]
+            lines = self._rbuf.decode(errors='ignore').split("\x00")
+            for line in lines:
+                self._process(line.rstrip("\r\n"))
+            self._rbuf.clear()
 
-        @param data: data to be fed
-        """
-        # Assume we intented to disconnect for some reason
-        # We shouldn't continue to process the rest of the data still in the pipe
-        # as it might error due to us already clearing the room state when disconnecting
-        if not self.connected:
-            return
+    def rfeed(self):
+        try:
+            size = self.sock.recv_into(self._sbuf)
+            if size > 0:
+                self._rbuf += self._sbuf[:size]
+                self.feed_tick()
+            else:
+                self.disconnect()
+        except socket.error as error:
+            print("[Room][rfeed] Socket error", error)
 
-        self._rbuf += data
-        while self._rbuf.find(b"\x00") != -1:
-            lines = self._rbuf.split(b"\x00")
-            for line in lines[:-1]:
-                self._process(line.decode(errors="replace").rstrip("\r\n"))
-            self._rbuf = lines[-1]
+    def wfeed(self):
+        try:
+            size = self.sock.send(self._wbuf)
+            del self._wbuf[:size]
+        except socket.error as error:
+            print("[Room][wfeed] Socket error", error)
 
     def _process(self, line: str):
         """
@@ -1041,6 +1089,12 @@ class Room:
 
         @param data: the command string
         """
+        # Assume we intended to disconnect for some reason
+        # We shouldn't continue to process the rest of the data still in the pipe
+        # as it might error due to us already clearing the room state when disconnecting
+        if not self.connected:
+            return
+
         self._callEvent("onRaw", line)
         cmd, *args = line.split(":")
         func = "_rcmd_" + cmd
@@ -1587,13 +1641,13 @@ class Room:
         if self._wlock:
             self._wlockbuf += data
         else:
-            self.wbuf += data
+            self._wbuf += data
 
     def _setWriteLock(self, lock: bool):
         self._wlock = lock
         if self._wlock is False:
-            self._write(self._wlockbuf)
-            self._wlockbuf = b""
+            self._wbuf += self._wlockbuf
+            self._wlockbuf.clear()
 
     def _sendCommand(self, *args: str):
         """
@@ -2180,9 +2234,9 @@ class RoomManager:
         self._pm = None
 
     def getConnections(self):
-        li: list[Conn] = list(self._rooms.values())
+        li: dict[socket.socket, Conn] = dict((x.sock, x) for x in self._rooms.values())
         if self._pm:
-            li.append(self._pm)
+            li[self.pm.sock] = self._pm
         return li
 
     ####
@@ -2195,10 +2249,9 @@ class RoomManager:
             time_to_next_task = Task.tick()
 
             conns = self.getConnections()
-            socks = [x.sock for x in conns]
-            wsocks = [x.sock for x in conns if x.wbuf != b""]
+            wsocks = [sock for sock, x in conns.items() if x.pendingWrite]
 
-            if not socks:
+            if not conns:
                 if time_to_next_task is None:
                     # Backward compatibilty in case of deferToThread joinRoom
                     # or user managed threading
@@ -2214,24 +2267,13 @@ class RoomManager:
 
                 continue
 
-            rd, wr, _ = select.select(socks, wsocks, [], time_to_next_task)
+            rd, wr, _ = select.select(conns, wsocks, [], time_to_next_task)
             for sock in rd:
-                con = [c for c in conns if c.sock == sock][0]
-                try:
-                    data = sock.recv(1024)
-                    if len(data) > 0:
-                        con.feed(data)
-                    else:
-                        con.disconnect()
-                except socket.error as error:
-                    print("[RoomManager][Main Loop] Socket error", error)
+                con = conns[sock]
+                con.rfeed()
             for sock in wr:
-                con = [c for c in conns if c.sock == sock][0]
-                try:
-                    size = sock.send(con.wbuf)
-                    con.wbuf = con.wbuf[size:]
-                except socket.error as error:
-                    print("[RoomManager][Main Loop] Socket error", error)
+                con = conns[sock]
+                con.wfeed()
 
     @classmethod
     def easy_start(cls, rooms: Optional[list[str]] = None,
