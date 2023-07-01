@@ -61,7 +61,7 @@ def find_weights(url: str):
 
 def update_ch_weights(weights: list[tuple[str, int]]):
     """Open the file ch.py and override the existing weights"""
-    with open("ch_weights.py", "r+", encoding='utf-8') as ch_file:
+    with open("ch/ch_weights.py", "r+", encoding='utf-8') as ch_file:
         rdata = ch_file.read()
         var = "tsweights: list[tuple[str, int]] = "
         wdata = re.sub(var + ".*", var + str(weights), rdata)

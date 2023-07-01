@@ -72,7 +72,7 @@ import bisect
 import heapq
 import html as _html
 
-from ch_weights import specials, tsweights
+from .ch_weights import specials, tsweights
 
 
 ################################################################
