@@ -609,10 +609,10 @@ class PM:
         self.sock.close()
         self._mgr.removePMConnection()
 
-    def _updateStatus(self, user: User, online: str, timestamp: str, idle_duration: str = "0"):
-        if online == "off":
-            self.status[user] = (int(timestamp), False)
-        elif online == "on" or online == "app":
+    def _updateStatus(self, user: User, status: str, timestamp: int, idle_duration: str = "0"):
+        if status == "off" or status == "offline":
+            self.status[user] = (timestamp, False)
+        elif status == "on" or status == "app" or status == "online":
             if idle_duration == '0':
                 self.status[user] = (0, True)
             else:
@@ -696,11 +696,12 @@ class PM:
             user = User(name)
             # in case chatango gives a "None" as data argument
             if last_on != "None":
-                if not self._updateStatus(user, is_on, last_on, idle):
+                if not self._updateStatus(user, is_on, int(last_on), idle):
                     print("[PM][wl] Unsupported format: ", name, last_on, is_on, idle)
             else:
                 print("[PM][wl] Received None for timestamp, consider submitting an issue:")
                 print(" -> ", name, last_on, is_on, idle)
+                continue
             self.contacts.add(user)
         self._callEvent("onPMContactlistReceive")
 
@@ -721,8 +722,13 @@ class PM:
 
     def _rcmd_track(self, args: list[str]):
         user = User(args[0])
-        if not self._updateStatus(user, args[2], args[1], args[1]):
+        if not self._updateStatus(user, args[2], int(args[1]), args[1]):
             print("[PM][track] Unsupported format: ", *args)
+
+    def _rcmd_status(self, args: list[str]):
+        user = User(args[0])
+        if not self._updateStatus(user, args[2], int(float(args[1])), args[1]):
+            print("[PM][status] Unsupported format: ", *args)
 
     def _rcmd_DENIED(self, _args: list[str]):
         self._disconnect()
@@ -762,7 +768,7 @@ class PM:
 
     def _rcmd_wladd(self, args: list[str]):
         user = User(args[0])
-        self._updateStatus(user, args[1], "0", args[2])
+        self._updateStatus(user, args[1], int(args[2]), args[2])
         self.contacts.add(user)
         self._callEvent("onPMContactAdd", user)
 
@@ -784,7 +790,7 @@ class PM:
 
     def _rcmd_wloffline(self, args: list[str]):
         user = User(args[0])
-        last_on = int(args[1])
+        last_on = int(float(args[1]))
         self.status[user] = (last_on, False)
         self._callEvent("onPMContactOffline", user)
 
