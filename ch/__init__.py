@@ -1748,7 +1748,7 @@ class RoomManager:
     _TimerResolution = 0.2
     _deferredThreads: set[threading.Thread] = set()
     disconnectOnEmptyConnAndTask = True
-    pingDelay = 20
+    pingDelay = 90
     userlistMode = Userlist_Mode.Recent
     userlistUnique = True
     userlistMemory = 50
