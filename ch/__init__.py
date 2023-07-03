@@ -940,6 +940,7 @@ class Room:
         # Set lack order,  possible to use dict[msg, None] but no slicing
         self.history: list[Message] = list()
         self._i_log: list[Message] = list()
+        self._ihistoryIndex: int | None = 0
         self._userlist: list[User] = list()
         self._firstCommand = True
         self._connectAmount = 0
@@ -1144,7 +1145,6 @@ class Room:
         self.owner = User(args[0])
         self.uid = args[1]
         self._mods = set(map(lambda x: User(x.split(",")[0]), args[6].split(";")))
-        self._i_log.clear()
 
     def _rcmd_aliasok(self, _args: list[str]):
         # Successful Setting Temp Name
@@ -1170,8 +1170,12 @@ class Room:
                 self._callEvent("onHistoryMessage", user, msg)
                 self._addHistory(msg)
             self._i_log.clear()
+            self._callEvent("onHistoryMessageUpdate")
         else:
             self._callEvent("onReconnect")
+            # we do not repeat onHistoryMessage calls but we still need to clear the log
+            # in case the users uses getMoreHistory
+            self._i_log.clear()
         self._connectAmount += 1
         self._setWriteLock(False)
 
@@ -1290,6 +1294,23 @@ class Room:
             room=self
         )
         self._i_log.append(msg)
+
+    def _rcmd_gotmore(self, args: list[str]):
+        for msg in reversed(self._i_log):
+            user = msg.user
+            self._callEvent("onHistoryMessage", user, msg)
+            self._addHistory(msg)
+        self._i_log.clear()
+        self._callEvent("onHistoryMessageUpdate")
+
+    def _rcmd_nomore(self, args: list[str]):
+        self._ihistoryIndex = None
+
+    def getMoreHistory(self):
+        if self._ihistoryIndex is not None:
+            self._sendCommand('get_more', '20', str(self._ihistoryIndex))
+            self._ihistoryIndex += 1
+        return bool(self._ihistoryIndex)
 
     def _rcmd_g_participants(self, args: list[str]):
         args = ":".join(args).split(";")
@@ -1944,6 +1965,13 @@ class RoomManager:
         @param room: room where the event occurred
         @param user: owner of message
         @param message: the message that got added
+        """
+
+    def onHistoryMessageUpdate(self, room: Room):
+        """
+        Called when a set of history has been received.
+
+        @param room: room where the event occurred
         """
 
     def onJoin(self, room: Room, user: User, puid: str):
