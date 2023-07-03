@@ -941,6 +941,7 @@ class Room:
         self.history: list[Message] = list()
         self._i_log: list[Message] = list()
         self._ihistoryIndex: int | None = 0
+        self._gettingmorehistory: bool = False
         self._userlist: list[User] = list()
         self._firstCommand = True
         self._connectAmount = 0
@@ -1296,6 +1297,7 @@ class Room:
         self._i_log.append(msg)
 
     def _rcmd_gotmore(self, args: list[str]):
+        self._gettingmorehistory = False
         for msg in reversed(self._i_log):
             user = msg.user
             self._callEvent("onHistoryMessage", user, msg)
@@ -1307,7 +1309,17 @@ class Room:
         self._ihistoryIndex = None
 
     def getMoreHistory(self):
-        if self._ihistoryIndex is not None:
+        """
+        Request for more room message
+
+        Note: getMoreHistory not meant to be called more than once
+              per onHistoryMessageUpdate
+
+        @return: If there is more history message
+        """
+        # We shouldn't send out more than one request batch at a time
+        if self._ihistoryIndex is not None and not self._gettingmorehistory:
+            self._gettingmorehistory = True
             self._sendCommand('get_more', '20', str(self._ihistoryIndex))
             self._ihistoryIndex += 1
         return bool(self._ihistoryIndex)
