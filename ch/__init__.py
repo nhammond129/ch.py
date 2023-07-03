@@ -1296,7 +1296,7 @@ class Room:
         )
         self._i_log.append(msg)
 
-    def _rcmd_gotmore(self, args: list[str]):
+    def _rcmd_gotmore(self, _args: list[str]):
         self._gettingmorehistory = False
         for msg in reversed(self._i_log):
             user = msg.user
@@ -1305,7 +1305,7 @@ class Room:
         self._i_log.clear()
         self._callEvent("onHistoryMessageUpdate")
 
-    def _rcmd_nomore(self, args: list[str]):
+    def _rcmd_nomore(self, _args: list[str]):
         self._ihistoryIndex = None
 
     def getMoreHistory(self):
