@@ -25,7 +25,6 @@ class Asyncio_Task(ch.Task):
 
     async def _Tasks_Worker(self):
         while (time_to_next_task := self.tick()) is not None:
-            print(time_to_next_task)
             Asyncio_Task.__asyncio_wake.clear()
             with contextlib.suppress(asyncio.TimeoutError):
                 await asyncio.wait_for(Asyncio_Task.__asyncio_wake.wait(), time_to_next_task)
