@@ -482,8 +482,12 @@ class Task:
 
         Task.running_task = None
 
-        if Task._tasks_queue:
-            return Task._tasks_queue[0][0] - now
+        while Task._tasks_queue:
+            target, _tid, task = Task._tasks_queue[0]
+            if task.cancelled:
+                heapq.heappop(Task._tasks_queue)
+                continue
+            return target - now
 
 
 class Conn(Protocol):
@@ -884,7 +888,7 @@ class PM:
     def _setWriteLock(self, lock: bool):
         self._wlock = lock
         if self._wlock is False:
-            self._wbuf += self._wlockbuf
+            self._write(self._wlockbuf)
             self._wlockbuf.clear()
 
     def _sendCommand(self, *args: str):
@@ -1689,7 +1693,7 @@ class Room:
     def _setWriteLock(self, lock: bool):
         self._wlock = lock
         if self._wlock is False:
-            self._wbuf += self._wlockbuf
+            self._write(self._wlockbuf)
             self._wlockbuf.clear()
 
     def _sendCommand(self, *args: str):
