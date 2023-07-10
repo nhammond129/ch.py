@@ -124,7 +124,7 @@ class Asyncio_IOCPCore(Base):
     main = _Asyncio_Core.main
 
 
-class LWMConn(ch.Room):
+class LWMConn(Base):
     def __init__(self, room: str, uid: str | None, mgr: RoomManager):
         self._rfeed_running = asyncio.Event()
         self._rfeed_worker_task = self._rfeed_running.wait()
