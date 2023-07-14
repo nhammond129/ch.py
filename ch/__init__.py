@@ -620,7 +620,7 @@ class PM:
             if idle_duration == '0':
                 self.status[user] = (0, True)
             else:
-                self.status[user] = (int(time.time()) - int(idle_duration) * 60, True)
+                self.status[user] = (int(time.time()) - int(float(idle_duration)) * 60, True)
         else:
             # unknown status, `online` is not off | on | app
             return False
