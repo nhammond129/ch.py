@@ -46,8 +46,10 @@ class _WindowsMainLoopFix(ch.RoomManager):
             if time_to_next_task is None:
                 time_to_next_task = self._TimerResolution
 
+            next_target = ch.Task.get_next_tick_target()
+
             for _ in range(int((time_to_next_task/0.2)+0.5)):
-                if not self._running:
+                if not self._running or conns != self.getConnections() or next_target != ch.Task.get_next_tick_target():
                     break
                 rd, wr, _ = select.select(conns, wsocks, [], 0.2)
                 if rd or wr:

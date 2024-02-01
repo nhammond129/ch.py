@@ -457,6 +457,15 @@ class Task:
         Task._tasks_once.clear()
 
     @staticmethod
+    def get_next_tick_target() -> float | None:
+        while Task._tasks_queue:
+            target, _tid, task = Task._tasks_queue[0]
+            if task.cancelled:
+                heapq.heappop(Task._tasks_queue)
+                continue
+            return target
+
+    @staticmethod
     def tick() -> float | None:
         """
         Process the tasks
@@ -482,11 +491,7 @@ class Task:
 
         Task.running_task = None
 
-        while Task._tasks_queue:
-            target, _tid, task = Task._tasks_queue[0]
-            if task.cancelled:
-                heapq.heappop(Task._tasks_queue)
-                continue
+        if target := Task.get_next_tick_target():
             return target - now
 
 
@@ -597,7 +602,7 @@ class PM:
     def _auth(self):
         auid = self._getAuth(self._mgr.name, self._mgr.password)
         if auid is None:
-            self._callEvent("onLoginFail")
+            self._mgr._callEvent(self, "onLoginFail")
             return False
         self._sendCommand("tlogin", auid, "2")
         self._setWriteLock(True)
@@ -606,7 +611,7 @@ class PM:
     def disconnect(self):
         """Disconnect the bot from PM"""
         self._disconnect()
-        self._callEvent("onPMDisconnect")
+        self._mgr._callEvent(self, "onPMDisconnect")
 
     def _disconnect(self):
         self.connected = False
@@ -674,7 +679,7 @@ class PM:
         if not self.connected:
             return
 
-        self._callEvent("onRaw", data)
+        self._mgr._callEvent(self, "onRaw", data)
         cmd, *args = data.split(":")
         func = "_rcmd_" + cmd
         try:
@@ -690,7 +695,7 @@ class PM:
         self._setWriteLock(False)
         self._sendCommand("wl")
         self._sendCommand("getblock")
-        self._callEvent("onPMConnect")
+        self._mgr._callEvent(self, "onPMConnect")
 
     def _rcmd_wl(self, args: list[str]):
         self.contacts = set()
@@ -707,14 +712,14 @@ class PM:
                 print(" -> ", name, last_on, is_on, idle)
                 continue
             self.contacts.add(user)
-        self._callEvent("onPMContactlistReceive")
+        self._mgr._callEvent(self, "onPMContactlistReceive")
 
     def _rcmd_block_list(self, args: list[str]):
         new_blocklist = {User(name) for name in args if name != ""}
         if self.blocklist:
             for user in new_blocklist-self.blocklist:
                 self.blocklist.add(user)
-                self._callEvent("onPMBlock", user)
+                self._mgr._callEvent(self, "onPMBlock", user)
         self.blocklist = new_blocklist
 
     def _rcmd_idleupdate(self, args: list[str]):
@@ -736,7 +741,7 @@ class PM:
 
     def _rcmd_DENIED(self, _args: list[str]):
         self._disconnect()
-        self._callEvent("onLoginFail")
+        self._mgr._callEvent(self, "onLoginFail")
 
     def _rcmd_msg(self, args: list[str]):
         user = User(args[0])
@@ -763,40 +768,40 @@ class PM:
         )
 
         self.msgs[msgtime] = msg
-        self._callEvent("onPMMessage", user, msg)
+        self._mgr._callEvent(self, "onPMMessage", user, msg)
 
     def _rcmd_msgoff(self, args: list[str]):
         user = User(args[0])
         body = _strip_html(":".join(args[5:]))
-        self._callEvent("onPMOfflineMessage", user, body)
+        self._mgr._callEvent(self, "onPMOfflineMessage", user, body)
 
     def _rcmd_wladd(self, args: list[str]):
         user = User(args[0])
         self._updateStatus(user, args[1], int(args[2]), args[2])
         self.contacts.add(user)
-        self._callEvent("onPMContactAdd", user)
+        self._mgr._callEvent(self, "onPMContactAdd", user)
 
     def _rcmd_wldelete(self, args: list[str]):
         user = User(args[0])
         del self.status[user]
         self.contacts.remove(user)
-        self._callEvent("onPMContactRemove", user)
+        self._mgr._callEvent(self, "onPMContactRemove", user)
 
     def _rcmd_wlapp(self, args: list[str]):
         user = User(args[0])
         self.status[user] = (0, True)
-        self._callEvent("onPMContactOnline", user)
+        self._mgr._callEvent(self, "onPMContactOnline", user)
 
     def _rcmd_wlonline(self, args: list[str]):
         user = User(args[0])
         self.status[user] = (0, True)
-        self._callEvent("onPMContactOnline", user)
+        self._mgr._callEvent(self, "onPMContactOnline", user)
 
     def _rcmd_wloffline(self, args: list[str]):
         user = User(args[0])
         last_on = int(float(args[1]))
         self.status[user] = (last_on, False)
-        self._callEvent("onPMContactOffline", user)
+        self._mgr._callEvent(self, "onPMContactOffline", user)
 
     def _rcmd_kickingoff(self, _args: list[str]):
         self.disconnect()
@@ -809,7 +814,7 @@ class PM:
         user = User(args[0])
         if user in self.blocklist:
             self.blocklist.remove(user)
-            self._callEvent("onPMUnblock", user)
+            self._mgr._callEvent(self, "onPMUnblock", user)
 
     ####
     # Commands
@@ -817,7 +822,7 @@ class PM:
     def ping(self):
         """send a ping"""
         self._sendCommand("")
-        self._callEvent("onPMPing")
+        self._mgr._callEvent(self, "onPMPing")
 
     def message(self, user: User, msg: str):
         """send a pm to a user"""
@@ -875,10 +880,6 @@ class PM:
     ####
     # Util
     ####
-    def _callEvent(self, evt: str, *args: Any, **kw: Any):
-        getattr(self._mgr, evt)(self, *args, **kw)
-        self._mgr.onEventCalled(self, evt, *args, **kw)
-
     def _write(self, data: bytes):
         if self._wlock:
             self._wlockbuf += data
@@ -994,7 +995,7 @@ class Room:
     def disconnect(self):
         """Disconnect."""
         self._disconnect()
-        self._callEvent("onDisconnect")
+        self._mgr._callEvent(self, "onDisconnect")
 
     def _disconnect(self):
         """Disconnect from the server."""
@@ -1111,7 +1112,7 @@ class Room:
         if not self.connected:
             return
 
-        self._callEvent("onRaw", line)
+        self._mgr._callEvent(self, "onRaw", line)
         cmd, *args = line.split(":")
         func = "_rcmd_" + cmd
         if hasattr(self, func):
@@ -1142,7 +1143,7 @@ class Room:
             self._sendCommand("blogin", self._mgr.name)
         # if name and password is provided but fail to login
         elif args[2] != "M":  # unsuccessful login
-            self._callEvent("onLoginFail")
+            self._mgr._callEvent(self, "onLoginFail")
             self.disconnect()
         # Successful login
         elif args[2] == "M":
@@ -1161,7 +1162,7 @@ class Room:
 
     def _rcmd_denied(self, _args: list[str]):
         self._disconnect()
-        self._callEvent("onConnectFail")
+        self._mgr._callEvent(self, "onConnectFail")
 
     def _rcmd_inited(self, _args: list[str]):
         self._sendCommand("g_participants", "start")
@@ -1169,15 +1170,15 @@ class Room:
         self.requestBanlist()
         self.requestUnBanlist()
         if self._connectAmount == 0:
-            self._callEvent("onConnect")
+            self._mgr._callEvent(self, "onConnect")
             for msg in reversed(self._i_log):
                 user = msg.user
-                self._callEvent("onHistoryMessage", user, msg)
+                self._mgr._callEvent(self, "onHistoryMessage", user, msg)
                 self._addHistory(msg)
             self._i_log.clear()
-            self._callEvent("onHistoryMessageUpdate")
+            self._mgr._callEvent(self, "onHistoryMessageUpdate")
         else:
-            self._callEvent("onReconnect")
+            self._mgr._callEvent(self, "onReconnect")
             # we do not repeat onHistoryMessage calls but we still need to clear the log
             # in case the users uses getMoreHistory
             self._i_log.clear()
@@ -1200,11 +1201,11 @@ class Room:
         premods = self._mods
         for user in mods - premods:  # modded
             self._mods.add(user)
-            self._callEvent("onModAdd", user)
+            self._mgr._callEvent(self, "onModAdd", user)
         for user in premods - mods:  # demodded
             self._mods.remove(user)
-            self._callEvent("onModRemove", user)
-        self._callEvent("onModChange")
+            self._mgr._callEvent(self, "onModRemove", user)
+        self._mgr._callEvent(self, "onModChange")
 
     def _rcmd_b(self, args: list[str]):
         mtime = float(args[0])
@@ -1254,7 +1255,7 @@ class Room:
         if msg := self._mqueue.pop(args[0], None):
             msg.attach(self, args[1])
             self._addHistory(msg)
-            self._callEvent("onMessage", msg.user, msg)
+            self._mgr._callEvent(self, "onMessage", msg.user, msg)
 
     def _rcmd_i(self, args: list[str]):
         mtime = float(args[0])
@@ -1304,10 +1305,10 @@ class Room:
         self._gettingmorehistory = False
         for msg in reversed(self._i_log):
             user = msg.user
-            self._callEvent("onHistoryMessage", user, msg)
+            self._mgr._callEvent(self, "onHistoryMessage", user, msg)
             self._addHistory(msg)
         self._i_log.clear()
-        self._callEvent("onHistoryMessageUpdate")
+        self._mgr._callEvent(self, "onHistoryMessageUpdate")
 
     def _rcmd_nomore(self, _args: list[str]):
         self._ihistoryIndex = None
@@ -1353,7 +1354,7 @@ class Room:
             user.removeSessionId(self, args[1])
             self._userlist.remove(user)
             if user not in self._userlist or not self._mgr.userlistEventUnique:
-                self._callEvent("onLeave", user, puid)
+                self._mgr._callEvent(self, "onLeave", user, puid)
         else:  # join
             user.addSessionId(self, args[1])
             if user not in self._userlist:
@@ -1362,23 +1363,23 @@ class Room:
                 doEvent = False
             self._userlist.append(user)
             if doEvent or not self._mgr.userlistEventUnique:
-                self._callEvent("onJoin", user, puid)
+                self._mgr._callEvent(self, "onJoin", user, puid)
 
     def _rcmd_show_fw(self, _args: list[str]):
-        self._callEvent("onFloodWarning")
+        self._mgr._callEvent(self, "onFloodWarning")
 
     def _rcmd_show_tb(self, _args: list[str]):
-        self._callEvent("onFloodBan")
+        self._mgr._callEvent(self, "onFloodBan")
 
     def _rcmd_tb(self, _args: list[str]):
-        self._callEvent("onFloodBanRepeat")
+        self._mgr._callEvent(self, "onFloodBanRepeat")
 
     def _rcmd_delete(self, args: list[str]):
         msg = self.msgs.get(args[0])
         if msg:
             if msg in self.history:
                 self.history.remove(msg)
-                self._callEvent("onMessageDelete", msg.user, msg)
+                self._mgr._callEvent(self, "onMessageDelete", msg.user, msg)
                 msg.detach()
 
     def _rcmd_deleteall(self, args: list[str]):
@@ -1387,7 +1388,7 @@ class Room:
 
     def _rcmd_n(self, args: list[str]):
         self.usercount = int(args[0], 16)
-        self._callEvent("onUserCountChange")
+        self._mgr._callEvent(self, "onUserCountChange")
 
     def _rcmd_blocklist(self, args: list[str]):
         self._banlist = dict()
@@ -1400,7 +1401,7 @@ class Room:
                 continue
             user = User(p[2])
             self._banlist[user] = BanRecord(p[0], p[1], user, float(p[3]), User(p[4]))
-        self._callEvent("onBanlistUpdate")
+        self._mgr._callEvent(self, "onBanlistUpdate")
 
     def _rcmd_unblocklist(self, args: list[str]):
         self._unbanlist = dict()
@@ -1413,7 +1414,7 @@ class Room:
                 continue
             user = User(p[2])
             self._unbanlist[user] = BanRecord(p[0], p[1], user, float(p[3]), User(p[4]))
-        self._callEvent("onUnBanlistUpdate")
+        self._mgr._callEvent(self, "onUnBanlistUpdate")
 
     def _rcmd_blocked(self, args: list[str]):
         if args[2] == "":
@@ -1422,7 +1423,7 @@ class Room:
         user = User(args[3])
         self._banlist[target] = BanRecord(args[0], args[1], target, float(args[4]), user)
 
-        self._callEvent("onBan", user, target)
+        self._mgr._callEvent(self, "onBan", user, target)
 
     def _rcmd_unblocked(self, args: list[str]):
         if args[2] == "":
@@ -1431,7 +1432,7 @@ class Room:
         user = User(args[3])
         del self._banlist[target]
         self._unbanlist[user] = BanRecord(args[0], args[1], target, float(args[4]), user)
-        self._callEvent("onUnban", user, target)
+        self._mgr._callEvent(self, "onUnban", user, target)
 
     ####
     # Commands
@@ -1452,7 +1453,7 @@ class Room:
     def ping(self):
         """Send a ping."""
         self._sendCommand("")
-        self._callEvent("onPing")
+        self._mgr._callEvent(self, "onPing")
 
     def rawMessage(self, msg: str):
         """
@@ -1680,10 +1681,6 @@ class Room:
             return self._banlist[user]
         return None
 
-    def _callEvent(self, evt: str, *args: ..., **kw: ...):
-        getattr(self._mgr, evt)(self, *args, **kw)
-        self._mgr.onEventCalled(self, evt, *args, **kw)
-
     def _write(self, data: bytes):
         if self._wlock:
             self._wlockbuf += data
@@ -1879,6 +1876,10 @@ class RoomManager:
                 break
             except UnicodeEncodeError as ex:
                 text = (text[0:ex.start]+'(unicode)'+text[ex.end:])
+
+    def _callEvent(self, conn: Conn, evt: str, *args: ..., **kw: ...):
+        getattr(self, evt)(conn, *args, **kw)
+        self.onEventCalled(conn, evt, *args, **kw)
 
     def onConnect(self, room: Room):
         """
@@ -2163,7 +2164,7 @@ class RoomManager:
         @param user: the user that went offline
         """
 
-    def onEventCalled(self, room: Room | PM, evt: str, *args: ..., **kw: ...):
+    def onEventCalled(self, room: Conn, evt: str, *args: ..., **kw: ...):
         """
         Called on every room-based event.
 
